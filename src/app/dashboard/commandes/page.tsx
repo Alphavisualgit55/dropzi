@@ -1,47 +1,69 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import type { Commande, Zone, Livreur, Produit, Client } from '@/types'
 
-const STATUTS = ['en_attente','en_livraison','livre','annule','echec']
 const STATUT_LABEL: Record<string, string> = {
-  en_attente: 'En attente', en_livraison: 'En livraison',
-  livre: 'Livré', annule: 'Annulé', echec: 'Échec'
+  en_attente: '⏳ En attente', en_livraison: '🚚 En livraison',
+  livre: '✅ Livré', annule: '❌ Annulé', echec: '⚠️ Échec'
 }
-
+const STATUTS = ['en_attente', 'en_livraison', 'livre', 'annule', 'echec']
 const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n))
 
 export default function CommandesPage() {
   const supabase = createClient()
-  const [commandes, setCommandes] = useState<Commande[]>([])
-  const [zones, setZones] = useState<Zone[]>([])
-  const [livreurs, setLivreurs] = useState<Livreur[]>([])
-  const [produits, setProduits] = useState<Produit[]>([])
+  const [commandes, setCommandes] = useState<any[]>([])
+  const [zones, setZones] = useState<any[]>([])
+  const [livreurs, setLivreurs] = useState<any[]>([])
+  const [produits, setProduits] = useState<any[]>([])
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [filtre, setFiltre] = useState('tous')
 
   const [form, setForm] = useState({
-    client_nom: '', client_tel: '', client_adresse: '',
-    zone_id: '', livreur_id: '', cout_livraison: 0, notes: '',
+    telephone: '', nom: '', adresse: '',
+    zone_id: '', livreur_id: '', notes: '',
     items: [{ produit_id: '', quantite: 1 }]
   })
 
   async function load() {
     const [c, z, l, p] = await Promise.all([
-      supabase.from('commandes_detail').select('*').order('created_at', { ascending: false }).limit(50),
-      supabase.from('zones').select('*'),
-      supabase.from('livreurs').select('*').eq('actif', true),
-      supabase.from('produits').select('*').eq('actif', true),
+      supabase.from('commandes_detail').select('*').order('created_at', { ascending: false }).limit(100),
+      supabase.from('zones').select('*').order('nom'),
+      supabase.from('livreurs').select('*').eq('actif', true).order('nom'),
+      supabase.from('produits').select('*').eq('actif', true).order('nom'),
     ])
-    setCommandes((c.data || []) as Commande[])
-    setZones((z.data || []) as Zone[])
-    setLivreurs((l.data || []) as Livreur[])
-    setProduits((p.data || []) as Produit[])
+    setCommandes(c.data || [])
+    setZones(z.data || [])
+    setLivreurs(l.data || [])
+    setProduits(p.data || [])
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    const ch = supabase.channel('cmd').on('postgres_changes', { event: '*', schema: 'public', table: 'commandes' }, load).subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [])
+
+  // Quand zone change → auto-remplir coût livraison
+  const selectedZone = zones.find(z => z.id === form.zone_id)
+  const coutLivraison = selectedZone?.cout_livraison || 0
+
+  // Livreurs filtrés par zone sélectionnée
+  const livreursZone = form.zone_id
+    ? livreurs.filter(l => l.zone_id === form.zone_id || !l.zone_id)
+    : livreurs
+
+  const totalForm = form.items.reduce((s, it) => {
+    const p = produits.find(p => p.id === it.produit_id)
+    return s + (p ? p.prix_vente * it.quantite : 0)
+  }, 0)
+
+  const beneficeForm = totalForm - form.items.reduce((s, it) => {
+    const p = produits.find(p => p.id === it.produit_id)
+    return s + (p ? p.cout_achat * it.quantite : 0)
+  }, 0) - coutLivraison
 
   async function save() {
     setSaving(true)
@@ -49,44 +71,40 @@ export default function CommandesPage() {
     if (!user) return
 
     let client_id: string | null = null
-    if (form.client_nom) {
-      const { data: existing } = await supabase.from('clients')
-        .select('id').eq('telephone', form.client_tel).eq('user_id', user.id).single()
-      if (existing) { client_id = existing.id }
-      else {
-        const { data: nc } = await supabase.from('clients').insert({
-          user_id: user.id, nom: form.client_nom,
-          telephone: form.client_tel, adresse: form.client_adresse
-        }).select('id').single()
-        client_id = nc?.id || null
-      }
+    if (form.telephone || form.nom) {
+      const { data: nc } = await supabase.from('clients').insert({
+        user_id: user.id,
+        nom: form.nom || form.telephone || 'Client',
+        telephone: form.telephone,
+        adresse: form.adresse
+      }).select('id').single()
+      client_id = nc?.id || null
     }
 
     const { data: cmd } = await supabase.from('commandes').insert({
       user_id: user.id, client_id,
       zone_id: form.zone_id || null,
       livreur_id: form.livreur_id || null,
-      cout_livraison: form.cout_livraison,
+      cout_livraison: coutLivraison,
       notes: form.notes,
     }).select('id').single()
 
     if (cmd) {
       const items = form.items.filter(i => i.produit_id).map(i => {
         const prod = produits.find(p => p.id === i.produit_id)!
-        return { commande_id: cmd.id, produit_id: i.produit_id,
-          quantite: i.quantite, prix_unitaire: prod.prix_vente, cout_unitaire: prod.cout_achat }
+        return { commande_id: cmd.id, produit_id: i.produit_id, quantite: i.quantite, prix_unitaire: prod.prix_vente, cout_unitaire: prod.cout_achat }
       })
       if (items.length) await supabase.from('commande_items').insert(items)
     }
 
     setShowForm(false)
-    setForm({ client_nom:'', client_tel:'', client_adresse:'', zone_id:'', livreur_id:'', cout_livraison:0, notes:'', items:[{ produit_id:'', quantite:1 }] })
+    setForm({ telephone: '', nom: '', adresse: '', zone_id: '', livreur_id: '', notes: '', items: [{ produit_id: '', quantite: 1 }] })
     setSaving(false)
     load()
   }
 
   async function updateStatut(id: string, statut: string) {
-    await supabase.from('commandes').update({ statut }).eq('id', id)
+    await supabase.from('commandes').update({ statut, updated_at: new Date().toISOString() }).eq('id', id)
     load()
   }
 
@@ -94,13 +112,13 @@ export default function CommandesPage() {
   function updateItem(i: number, k: string, v: any) {
     setForm(f => { const items = [...f.items]; items[i] = { ...items[i], [k]: v }; return { ...f, items } })
   }
+  function removeItem(i: number) {
+    setForm(f => ({ ...f, items: f.items.filter((_, idx) => idx !== i) }))
+  }
 
-  const totalForm = form.items.reduce((s, it) => {
-    const p = produits.find(p => p.id === it.produit_id)
-    return s + (p ? p.prix_vente * it.quantite : 0)
-  }, 0)
+  const commandesFiltrees = filtre === 'tous' ? commandes : commandes.filter(c => c.statut === filtre)
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-[#7F77DD] border-t-transparent rounded-full animate-spin"/></div>
+  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-[#7F77DD] border-t-transparent rounded-full animate-spin" /></div>
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
@@ -109,108 +127,139 @@ export default function CommandesPage() {
         <button onClick={() => setShowForm(true)} className="btn-primary text-sm">+ Nouvelle</button>
       </div>
 
-      {/* Formulaire nouvelle commande */}
+      {/* Formulaire rapide */}
       {showForm && (
-        <div className="card space-y-4 border-[#7F77DD] border">
-          <h2 className="font-medium text-sm">Nouvelle commande</h2>
+        <div className="card border-2 border-[#7F77DD] space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-medium">Nouvelle commande</h2>
+            <span className="text-xs text-gray-400">Seul le produit est obligatoire</span>
+          </div>
+
+          {/* Client optionnel */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Nom client *</label>
-              <input className="input" value={form.client_nom} onChange={e => setForm(f => ({...f, client_nom: e.target.value}))} placeholder="Fatou Diallo"/>
+              <label className="label">Téléphone (optionnel)</label>
+              <input className="input" value={form.telephone} onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))} placeholder="77 000 00 00" />
             </div>
             <div>
-              <label className="label">Téléphone</label>
-              <input className="input" value={form.client_tel} onChange={e => setForm(f => ({...f, client_tel: e.target.value}))} placeholder="77 000 00 00"/>
+              <label className="label">Nom (optionnel)</label>
+              <input className="input" value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))} placeholder="Fatou Diallo" />
             </div>
           </div>
           <div>
-            <label className="label">Adresse</label>
-            <input className="input" value={form.client_adresse} onChange={e => setForm(f => ({...f, client_adresse: e.target.value}))} placeholder="Rue 10, Médina"/>
+            <label className="label">Adresse (optionnel)</label>
+            <input className="input" value={form.adresse} onChange={e => setForm(f => ({ ...f, adresse: e.target.value }))} placeholder="Rue 10, Médina" />
           </div>
+
+          {/* Zone → coût auto */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Zone de livraison</label>
-              <select className="input" value={form.zone_id} onChange={e => setForm(f => ({...f, zone_id: e.target.value}))}>
+              <select className="input" value={form.zone_id} onChange={e => setForm(f => ({ ...f, zone_id: e.target.value, livreur_id: '' }))}>
                 <option value="">Choisir une zone</option>
-                {zones.map(z => <option key={z.id} value={z.id}>{z.nom}</option>)}
+                {zones.map(z => <option key={z.id} value={z.id}>{z.nom} — {fmt(z.cout_livraison)} F</option>)}
               </select>
             </div>
             <div>
-              <label className="label">Livreur</label>
-              <select className="input" value={form.livreur_id} onChange={e => setForm(f => ({...f, livreur_id: e.target.value}))}>
-                <option value="">Choisir</option>
-                {livreurs.map(l => <option key={l.id} value={l.id}>{l.nom}</option>)}
-              </select>
+              <label className="label">Coût livraison (auto)</label>
+              <div className="input bg-gray-50 text-gray-600">{fmt(coutLivraison)} FCFA</div>
             </div>
           </div>
+
+          {/* Livreur filtré par zone */}
           <div>
-            <label className="label">Frais de livraison (FCFA)</label>
-            <input className="input" type="number" value={form.cout_livraison} onChange={e => setForm(f => ({...f, cout_livraison: +e.target.value}))}/>
+            <label className="label">Livreur {form.zone_id ? '(zone sélectionnée)' : ''}</label>
+            <select className="input" value={form.livreur_id} onChange={e => setForm(f => ({ ...f, livreur_id: e.target.value }))}>
+              <option value="">Choisir un livreur</option>
+              {livreursZone.map(l => <option key={l.id} value={l.id}>{l.nom}</option>)}
+            </select>
           </div>
 
           {/* Produits */}
           <div>
-            <label className="label">Produits</label>
+            <label className="label">Produits *</label>
             <div className="space-y-2">
               {form.items.map((item, i) => (
-                <div key={i} className="flex gap-2">
+                <div key={i} className="flex gap-2 items-center">
                   <select className="input flex-1" value={item.produit_id} onChange={e => updateItem(i, 'produit_id', e.target.value)}>
                     <option value="">Choisir un produit</option>
-                    {produits.map(p => <option key={p.id} value={p.id}>{p.nom} — {fmt(p.prix_vente)} F</option>)}
+                    {produits.map(p => <option key={p.id} value={p.id}>{p.nom} — {fmt(p.prix_vente)} F (stock: {p.stock_total})</option>)}
                   </select>
-                  <input className="input w-20" type="number" min="1" value={item.quantite} onChange={e => updateItem(i, 'quantite', +e.target.value)}/>
+                  <input className="input w-16" type="number" min="1" value={item.quantite} onChange={e => updateItem(i, 'quantite', +e.target.value)} />
+                  {form.items.length > 1 && <button onClick={() => removeItem(i)} className="text-red-400 hover:text-red-600 p-1">✕</button>}
                 </div>
               ))}
             </div>
-            <button onClick={addItem} className="text-[#7F77DD] text-sm mt-2 hover:underline">+ Ajouter un produit</button>
+            <button onClick={addItem} className="text-[#7F77DD] text-sm mt-2 hover:underline">+ Ajouter produit</button>
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-            <div>
-              <p className="text-xs text-gray-400">Total commande</p>
-              <p className="text-lg font-medium">{fmt(totalForm)} FCFA</p>
+          <div>
+            <label className="label">Notes</label>
+            <input className="input" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Instructions spéciales..." />
+          </div>
+
+          {/* Récap */}
+          {totalForm > 0 && (
+            <div className="bg-[#EEEDFE] rounded-xl p-4">
+              <div className="flex justify-between text-sm"><span className="text-gray-600">Total vente</span><span className="font-medium">{fmt(totalForm)} F</span></div>
+              <div className="flex justify-between text-sm mt-1"><span className="text-gray-600">Livraison</span><span className="text-red-500">- {fmt(coutLivraison)} F</span></div>
+              <div className="flex justify-between text-sm mt-1 pt-2 border-t border-purple-200"><span className="font-medium text-[#534AB7]">Bénéfice estimé</span><span className="font-medium text-green-600">{fmt(beneficeForm)} F</span></div>
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => setShowForm(false)} className="btn-secondary text-sm">Annuler</button>
-              <button onClick={save} disabled={saving || !form.client_nom} className="btn-primary text-sm">
-                {saving ? 'Enregistrement...' : 'Créer commande'}
-              </button>
-            </div>
+          )}
+
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => setShowForm(false)} className="btn-secondary text-sm">Annuler</button>
+            <button onClick={save} disabled={saving || !form.items.some(i => i.produit_id)} className="btn-primary text-sm">
+              {saving ? 'Enregistrement...' : '✓ Créer commande'}
+            </button>
           </div>
         </div>
       )}
 
-      {/* Liste commandes */}
-      {commandes.length === 0 ? (
+      {/* Filtres */}
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {[['tous', 'Toutes'], ['en_attente', '⏳ En attente'], ['en_livraison', '🚚 En livraison'], ['livre', '✅ Livrées'], ['annule', '❌ Annulées']].map(([val, lbl]) => (
+          <button key={val} onClick={() => setFiltre(val)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors ${filtre === val ? 'bg-[#7F77DD] text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>
+            {lbl}
+          </button>
+        ))}
+      </div>
+
+      {/* Liste */}
+      {commandesFiltrees.length === 0 ? (
         <div className="card text-center py-12">
           <p className="text-4xl mb-3">📦</p>
-          <p className="text-gray-500">Aucune commande encore</p>
-          <button onClick={() => setShowForm(true)} className="btn-primary text-sm mt-4">Créer la première</button>
+          <p className="text-gray-500">Aucune commande</p>
+          <button onClick={() => setShowForm(true)} className="btn-primary text-sm mt-4">+ Créer la première</button>
         </div>
       ) : (
         <div className="space-y-3">
-          {commandes.map((c: any) => (
+          {commandesFiltrees.map((c: any) => (
             <div key={c.id} className="card">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-medium text-sm">{c.client_nom || 'Client'}</p>
+                    <span className="font-mono text-xs text-gray-400">{c.numero_commande}</span>
                     <span className={`badge-${c.statut}`}>{STATUT_LABEL[c.statut]}</span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-0.5">{c.zone_nom || '—'} · {c.client_tel || ''}</p>
-                  <p className="text-xs text-gray-400">{new Date(c.created_at).toLocaleString('fr-FR')}</p>
+                  <p className="font-medium text-sm mt-1">{c.client_nom || c.client_tel || 'Client anonyme'}</p>
+                  <p className="text-xs text-gray-400">{c.zone_nom || '—'} {c.livreur_nom ? `· ${c.livreur_nom}` : ''}</p>
+                  <p className="text-xs text-gray-300 mt-0.5">{new Date(c.created_at).toLocaleString('fr-FR')}</p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="font-medium text-sm">{fmt(c.total_vente || 0)} F</p>
-                  <p className="text-xs text-green-600">+{fmt(c.benefice || 0)} F</p>
+                  <p className="font-medium">{fmt(c.total_vente || 0)} F</p>
+                  {c.statut === 'livre'
+                    ? <p className="text-xs text-green-600 font-medium">+{fmt(c.benefice || 0)} F bénéf.</p>
+                    : <p className="text-xs text-gray-400">—</p>
+                  }
                 </div>
               </div>
-              <div className="mt-3 pt-3 border-t border-gray-50 flex gap-2 flex-wrap">
+              {/* Statuts rapides */}
+              <div className="flex gap-1.5 mt-3 pt-3 border-t border-gray-50 flex-wrap">
                 {STATUTS.map(s => (
                   <button key={s} onClick={() => updateStatut(c.id, s)}
-                    className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
-                      c.statut === s ? 'bg-[#7F77DD] text-white border-[#7F77DD]' : 'border-gray-200 text-gray-500 hover:border-[#7F77DD] hover:text-[#7F77DD]'
-                    }`}>
+                    className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${c.statut === s ? 'bg-[#7F77DD] text-white border-[#7F77DD]' : 'border-gray-200 text-gray-400 hover:border-[#7F77DD] hover:text-[#7F77DD]'}`}>
                     {STATUT_LABEL[s]}
                   </button>
                 ))}

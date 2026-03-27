@@ -10,22 +10,20 @@ const nav = [
   { href: '/dashboard/produits', label: 'Produits', icon: '🛍️' },
   { href: '/dashboard/stock', label: 'Stock', icon: '🏪' },
   { href: '/dashboard/livraisons', label: 'Livraisons', icon: '🚚' },
-  { href: '/dashboard/rapports', label: 'Rapports', icon: '📈' },
+  { href: '/dashboard/rapport-whatsapp', label: 'Rapport', icon: '📊' },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
-  const [boutique, setBoutique] = useState('Mon commerce')
+  const [boutique, setBoutique] = useState('Dropzi')
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) router.push('/login')
-      else {
-        supabase.from('profiles').select('nom_boutique').eq('id', user.id).single()
-          .then(({ data }) => { if (data?.nom_boutique) setBoutique(data.nom_boutique) })
-      }
+      if (!user) { router.push('/login'); return }
+      supabase.from('profiles').select('nom_boutique').eq('id', user.id).single()
+        .then(({ data }) => { if (data?.nom_boutique) setBoutique(data.nom_boutique) })
     })
   }, [])
 
@@ -47,21 +45,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <span className="text-white font-serif text-xl tracking-tight">Dropzi</span>
         </div>
-
         <nav className="flex-1 space-y-1">
           {nav.map(item => (
             <Link key={item.href} href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
-                pathname === item.href
-                  ? 'bg-[#7F77DD] text-white font-medium'
-                  : 'text-gray-400 hover:bg-white/10 hover:text-white'
+                pathname === item.href ? 'bg-[#7F77DD] text-white font-medium' : 'text-gray-400 hover:bg-white/10 hover:text-white'
               }`}>
               <span className="text-base">{item.icon}</span>
               {item.label}
+              {item.href === '/dashboard/rapport-whatsapp' && (
+                <span className="ml-auto bg-[#25D366] text-white text-xs px-1.5 py-0.5 rounded-full">WA</span>
+              )}
             </Link>
           ))}
         </nav>
-
         <div className="border-t border-white/10 pt-4 mt-4">
           <p className="text-gray-500 text-xs px-3 mb-1 truncate">{boutique}</p>
           <button onClick={logout}
@@ -73,20 +70,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main */}
       <main className="flex-1 flex flex-col">
-        <div className="flex-1 p-4 md:p-6 pb-24 md:pb-6">
-          {children}
-        </div>
+        <div className="flex-1 p-4 md:p-6 pb-24 md:pb-6">{children}</div>
       </main>
 
       {/* Bottom nav mobile */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex z-50">
         {nav.map(item => (
           <Link key={item.href} href={item.href}
-            className={`flex-1 flex flex-col items-center py-2 gap-0.5 text-xs transition-colors ${
+            className={`flex-1 flex flex-col items-center py-2 gap-0.5 text-xs transition-colors relative ${
               pathname === item.href ? 'text-[#7F77DD] font-medium' : 'text-gray-400'
             }`}>
             <span className="text-lg">{item.icon}</span>
-            <span className="hidden xs:block">{item.label}</span>
+            {item.href === '/dashboard/rapport-whatsapp' && (
+              <span className="absolute top-1 right-1 w-2 h-2 bg-[#25D366] rounded-full"/>
+            )}
           </Link>
         ))}
       </nav>
