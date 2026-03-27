@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -15,10 +16,7 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setLoading(true)
-    setError('')
-    setSuccess('')
-
+    setLoading(true); setError(''); setSuccess('')
     if (isSignup) {
       const { error } = await supabase.auth.signUp({ email, password })
       if (error) setError(error.message)
@@ -32,62 +30,53 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0C0C1E] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-2xl bg-[#7F77DD] flex items-center justify-center">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M3 5L12 3L21 5L19 15L12 20L5 15L3 5Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
+    <div style={{ minHeight: '100vh', background: '#0C0C1E', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+      <div style={{ width: '100%', maxWidth: 380 }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 14, background: 'linear-gradient(135deg,#7F77DD,#534AB7)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(127,119,221,.5)' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M3 5L12 3L21 5L19 15L12 20L5 15Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
                 <path d="M3 5L21 5" stroke="white" strokeWidth="1.5"/>
-                <path d="M12 3L12 20" stroke="rgba(255,255,255,0.4)" strokeWidth="1"/>
               </svg>
             </div>
-            <span className="text-3xl font-serif text-white tracking-tight">Dropzi</span>
+            <span style={{ color: '#fff', fontSize: 28, fontWeight: 800, letterSpacing: -1 }}>Dropzi</span>
           </div>
-          <p className="text-gray-400 text-sm">Gérez. Livrez. Encaissez.</p>
+          <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 14 }}>Gérez. Livrez. Encaissez.</p>
         </div>
 
-        {/* Form card */}
-        <div className="bg-white rounded-3xl p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-5">
+        <div style={{ background: '#fff', borderRadius: 24, padding: 28 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 24, color: '#1a1a2e' }}>
             {isSignup ? 'Créer un compte' : 'Connexion'}
           </h2>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
-              <label className="label">Email</label>
-              <input className="input" type="email" required
-                value={email} onChange={e => setEmail(e.target.value)}
-                placeholder="toi@example.com" />
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#888', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>Email</label>
+              <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="toi@example.com"
+                style={{ width: '100%', border: '1.5px solid #e0e0e0', borderRadius: 12, padding: '11px 14px', fontSize: 15, outline: 'none', fontFamily: 'inherit' }} />
             </div>
             <div>
-              <label className="label">Mot de passe</label>
-              <input className="input" type="password" required
-                value={password} onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••" minLength={6} />
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#888', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>Mot de passe</label>
+              <input type="password" required value={password} onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••" minLength={6}
+                style={{ width: '100%', border: '1.5px solid #e0e0e0', borderRadius: 12, padding: '11px 14px', fontSize: 15, outline: 'none', fontFamily: 'inherit' }} />
             </div>
-
-            {error && <p className="text-red-500 text-sm bg-red-50 p-3 rounded-xl">{error}</p>}
-            {success && <p className="text-green-700 text-sm bg-green-50 p-3 rounded-xl">{success}</p>}
-
+            {error && <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', borderRadius: 10, padding: '10px 14px', fontSize: 13 }}>{error}</div>}
+            {success && <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#16A34A', borderRadius: 10, padding: '10px 14px', fontSize: 13 }}>{success}</div>}
             <button type="submit" disabled={loading}
-              className="w-full bg-[#7F77DD] text-white font-medium py-3 rounded-xl hover:bg-[#534AB7] transition-colors disabled:opacity-60">
+              style={{ background: 'linear-gradient(135deg,#7F77DD,#534AB7)', color: '#fff', border: 'none', borderRadius: 14, padding: '14px', fontSize: 16, fontWeight: 700, cursor: 'pointer', opacity: loading ? 0.7 : 1, fontFamily: 'inherit' }}>
               {loading ? 'Chargement...' : isSignup ? 'Créer mon compte' : 'Se connecter'}
             </button>
           </form>
-
-          <p className="text-center text-sm text-gray-500 mt-4">
+          <p style={{ textAlign: 'center', fontSize: 14, color: '#888', marginTop: 20 }}>
             {isSignup ? 'Déjà un compte ?' : 'Pas encore de compte ?'}{' '}
-            <button onClick={() => setIsSignup(!isSignup)}
-              className="text-[#7F77DD] font-medium hover:underline">
+            <button onClick={() => setIsSignup(!isSignup)} style={{ color: '#7F77DD', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>
               {isSignup ? 'Se connecter' : 'Créer un compte gratuit'}
             </button>
           </p>
         </div>
-
-        <p className="text-center text-gray-600 text-xs mt-4">7 jours gratuits · Aucune carte requise</p>
+        <p style={{ textAlign: 'center', color: 'rgba(255,255,255,.25)', fontSize: 12, marginTop: 16 }}>7 jours gratuits · Aucune carte requise</p>
       </div>
     </div>
   )

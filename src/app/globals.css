@@ -2,19 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --dropzi-purple: #7F77DD;
-  --dropzi-indigo: #534AB7;
-  --dropzi-dark: #0C0C1E;
-  --dropzi-green: #1D9E75;
-  --dropzi-light: #EEEDFE;
-}
-
 * { box-sizing: border-box; }
 
 body {
-  background: #F8F8FC;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #F8F8FC;
   color: #1a1a2e;
 }
 
@@ -23,9 +15,6 @@ body {
 }
 .btn-secondary {
   @apply bg-[#EEEDFE] text-[#534AB7] font-medium px-4 py-2 rounded-xl hover:bg-[#CECBF6] transition-colors;
-}
-.btn-danger {
-  @apply bg-red-50 text-red-600 font-medium px-4 py-2 rounded-xl hover:bg-red-100 transition-colors;
 }
 .card {
   @apply bg-white rounded-2xl border border-gray-100 p-4;
@@ -36,8 +25,6 @@ body {
 .label {
   @apply block text-xs font-medium text-gray-500 mb-1;
 }
-
-/* Statut badges */
 .badge-en_attente  { @apply bg-amber-50 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full; }
 .badge-en_livraison { @apply bg-blue-50 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full; }
 .badge-livre       { @apply bg-green-50 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full; }
