@@ -2,6 +2,13 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 
+const TYPE_CONFIG: Record<string, { color: string; bg: string; icon: string }> = {
+  info:    { color: '#7F77DD', bg: 'rgba(127,119,221,.1)', icon: 'ℹ️' },
+  success: { color: '#1D9E75', bg: 'rgba(29,158,117,.1)', icon: '✅' },
+  warning: { color: '#BA7517', bg: 'rgba(186,117,23,.1)', icon: '⚠️' },
+  error:   { color: '#E24B4A', bg: 'rgba(226,75,74,.1)', icon: '❌' },
+}
+
 export default function AdminNotificationsPage() {
   const supabase = createClient()
   const [notifs, setNotifs] = useState<any[]>([])
@@ -27,45 +34,47 @@ export default function AdminNotificationsPage() {
   }
 
   async function supprimer(id: string) {
-    if (!confirm('Supprimer cette notification ?')) return
+    if (!confirm('Supprimer ?')) return
     await supabase.from('notifications_admin').delete().eq('id', id)
     load()
   }
 
-  const typeColor: Record<string, string> = { info: '#7F77DD', warning: '#BA7517', success: '#1D9E75', error: '#E24B4A' }
-  const typeIcon: Record<string, string> = { info: 'ℹ️', warning: '⚠️', success: '✅', error: '❌' }
+  const inp: React.CSSProperties = { width: '100%', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 10, padding: '10px 14px', color: '#fff', fontSize: 13, outline: 'none', fontFamily: 'inherit' }
+  const lbl: React.CSSProperties = { fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.3)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 6 }
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-[#7F77DD] border-t-transparent rounded-full animate-spin" /></div>
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ width: 32, height: 32, border: '2px solid #7F77DD', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .8s linear infinite' }} />
+    </div>
+  )
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      <div>
-        <h1 className="text-2xl font-bold text-white" style={{ fontFamily: 'Georgia,serif' }}>Notifications</h1>
-        <p className="text-gray-500 text-sm mt-1">Envoyer des messages à tous les utilisateurs</p>
+    <div style={{ maxWidth: 900 }}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: -.5 }}>Notifications</h1>
+        <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 13, marginTop: 4 }}>Envoyer des messages à vos utilisateurs</p>
       </div>
 
       {/* Formulaire */}
-      <div style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(127,119,221,.25)', borderRadius: 20, padding: 24 }}>
-        <h2 className="text-white font-semibold mb-5">📢 Nouvelle notification</h2>
-        <div className="space-y-4">
+      <div style={{ background: 'rgba(127,119,221,.05)', border: '1px solid rgba(127,119,221,.2)', borderRadius: 16, padding: 24, marginBottom: 24 }}>
+        <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 18 }}>📢 Nouvelle notification</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={{ color: '#888', fontSize: 12, textTransform: 'uppercase', letterSpacing: '.06em', display: 'block', marginBottom: 6 }}>Titre *</label>
+            <label style={lbl}>Titre *</label>
             <input value={form.titre} onChange={e => setForm(f => ({ ...f, titre: e.target.value }))}
-              placeholder="Ex: Nouvelle fonctionnalité disponible !"
-              style={{ width: '100%', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 12, padding: '12px 16px', color: '#fff', fontSize: 14, outline: 'none' }} />
+              placeholder="Ex : Nouvelle fonctionnalité disponible !" style={inp} />
           </div>
           <div>
-            <label style={{ color: '#888', fontSize: 12, textTransform: 'uppercase', letterSpacing: '.06em', display: 'block', marginBottom: 6 }}>Message *</label>
+            <label style={lbl}>Message *</label>
             <textarea value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
-              placeholder="Contenu de la notification..."
-              rows={3}
-              style={{ width: '100%', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 12, padding: '12px 16px', color: '#fff', fontSize: 14, outline: 'none', resize: 'vertical', fontFamily: 'inherit' }} />
+              placeholder="Contenu de la notification..." rows={3}
+              style={{ ...inp, resize: 'vertical' }} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div>
-              <label style={{ color: '#888', fontSize: 12, textTransform: 'uppercase', letterSpacing: '.06em', display: 'block', marginBottom: 6 }}>Type</label>
-              <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-                style={{ width: '100%', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 12, padding: '12px 16px', color: '#fff', fontSize: 14 }}>
+              <label style={lbl}>Type</label>
+              <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} style={{ ...inp, cursor: 'pointer' }}>
                 <option value="info">ℹ️ Info</option>
                 <option value="success">✅ Succès</option>
                 <option value="warning">⚠️ Avertissement</option>
@@ -73,60 +82,70 @@ export default function AdminNotificationsPage() {
               </select>
             </div>
             <div>
-              <label style={{ color: '#888', fontSize: 12, textTransform: 'uppercase', letterSpacing: '.06em', display: 'block', marginBottom: 6 }}>Destinataires</label>
-              <select value={form.cible} onChange={e => setForm(f => ({ ...f, cible: e.target.value }))}
-                style={{ width: '100%', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 12, padding: '12px 16px', color: '#fff', fontSize: 14 }}>
+              <label style={lbl}>Destinataires</label>
+              <select value={form.cible} onChange={e => setForm(f => ({ ...f, cible: e.target.value }))} style={{ ...inp, cursor: 'pointer' }}>
                 <option value="tous">👥 Tous les utilisateurs</option>
-                <option value="basic">🔵 Plan Basic uniquement</option>
-                <option value="business">🟣 Plan Business uniquement</option>
-                <option value="elite">🟢 Plan Elite uniquement</option>
+                <option value="basic">Plan Basic</option>
+                <option value="business">Plan Business</option>
+                <option value="elite">Plan Elite</option>
               </select>
             </div>
           </div>
 
           {/* Preview */}
           {form.titre && (
-            <div style={{ background: `${typeColor[form.type]}11`, border: `1px solid ${typeColor[form.type]}33`, borderRadius: 12, padding: '14px 16px' }}>
-              <div style={{ color: typeColor[form.type], fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{typeIcon[form.type]} {form.titre}</div>
-              <div style={{ color: 'rgba(255,255,255,.6)', fontSize: 13 }}>{form.message}</div>
-              <div style={{ color: '#555', fontSize: 11, marginTop: 8 }}>Pour : {form.cible === 'tous' ? 'Tous les utilisateurs' : `Plan ${form.cible}`}</div>
+            <div style={{ background: TYPE_CONFIG[form.type].bg, border: `1px solid ${TYPE_CONFIG[form.type].color}44`, borderRadius: 12, padding: '14px 16px' }}>
+              <div style={{ color: TYPE_CONFIG[form.type].color, fontWeight: 700, fontSize: 14, marginBottom: 5 }}>
+                {TYPE_CONFIG[form.type].icon} {form.titre}
+              </div>
+              {form.message && <div style={{ color: 'rgba(255,255,255,.55)', fontSize: 13, lineHeight: 1.6 }}>{form.message}</div>}
+              <div style={{ color: 'rgba(255,255,255,.25)', fontSize: 11, marginTop: 8 }}>
+                → {form.cible === 'tous' ? 'Tous les utilisateurs' : `Plan ${form.cible}`}
+              </div>
             </div>
           )}
 
-          <button onClick={envoyer} disabled={saving || !form.titre || !form.message}
-            style={{ width: '100%', background: 'linear-gradient(135deg,#7F77DD,#534AB7)', color: '#fff', border: 'none', borderRadius: 14, padding: '14px', fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: saving || !form.titre || !form.message ? 0.5 : 1 }}>
-            {saving ? '⏳ Envoi...' : '📢 Envoyer la notification'}
+          <button onClick={envoyer} disabled={saving || !form.titre || !form.message} style={{
+            background: 'linear-gradient(135deg,#7F77DD,#534AB7)', color: '#fff', border: 'none',
+            borderRadius: 12, padding: '13px', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+            fontFamily: 'inherit', opacity: saving || !form.titre || !form.message ? 0.5 : 1,
+            boxShadow: '0 0 20px rgba(127,119,221,.25)'
+          }}>
+            {saving ? '⏳ Envoi en cours...' : '📢 Envoyer la notification'}
           </button>
         </div>
       </div>
 
       {/* Historique */}
-      <div>
-        <h2 className="text-white font-semibold mb-4">Historique des notifications ({notifs.length})</h2>
-        {notifs.length === 0 ? (
-          <div style={{ textAlign: 'center', color: '#444', padding: '40px', background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 16 }}>
-            Aucune notification envoyée encore
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {notifs.map(n => (
-              <div key={n.id} style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 16, padding: '16px 20px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 24, flexShrink: 0 }}>{typeIcon[n.type]}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{n.titre}</div>
-                  <div style={{ color: '#666', fontSize: 13, marginTop: 4, lineHeight: 1.5 }}>{n.message}</div>
-                  <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: `${typeColor[n.type]}22`, color: typeColor[n.type] }}>{n.type.toUpperCase()}</span>
-                    <span style={{ fontSize: 11, color: '#555' }}>→ {n.cible === 'tous' ? 'Tous les utilisateurs' : `Plan ${n.cible}`}</span>
-                    <span style={{ fontSize: 11, color: '#444' }}>{new Date(n.created_at).toLocaleString('fr-FR')}</span>
-                  </div>
-                </div>
-                <button onClick={() => supprimer(n.id)} style={{ background: 'none', border: 'none', color: '#444', cursor: 'pointer', padding: '4px', fontSize: 16, flexShrink: 0 }}>🗑️</button>
-              </div>
-            ))}
-          </div>
-        )}
+      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 14, color: 'rgba(255,255,255,.8)' }}>
+        Historique — {notifs.length} notification{notifs.length > 1 ? 's' : ''}
       </div>
+
+      {notifs.length === 0 ? (
+        <div style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 14, padding: '40px', textAlign: 'center', color: 'rgba(255,255,255,.2)', fontSize: 13 }}>
+          Aucune notification envoyée
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {notifs.map(n => (
+            <div key={n.id} style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 12, padding: '14px 18px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>{TYPE_CONFIG[n.type]?.icon || 'ℹ️'}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{n.titre}</div>
+                <div style={{ color: 'rgba(255,255,255,.45)', fontSize: 13, marginTop: 4, lineHeight: 1.5 }}>{n.message}</div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: TYPE_CONFIG[n.type]?.bg, color: TYPE_CONFIG[n.type]?.color }}>
+                    {n.type.toUpperCase()}
+                  </span>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,.25)' }}>→ {n.cible === 'tous' ? 'Tous' : `Plan ${n.cible}`}</span>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,.2)' }}>{new Date(n.created_at).toLocaleString('fr-FR')}</span>
+                </div>
+              </div>
+              <button onClick={() => supprimer(n.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.2)', cursor: 'pointer', padding: 4, fontSize: 16, flexShrink: 0 }}>🗑️</button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

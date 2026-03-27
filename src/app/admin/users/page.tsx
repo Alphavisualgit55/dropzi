@@ -6,6 +6,11 @@ const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n ||
 const PLANS = ['basic', 'business', 'elite']
 const STATUTS = ['actif', 'suspendu', 'supprime']
 
+const planColor = (p: string) => p === 'elite' ? '#1D9E75' : p === 'business' ? '#7F77DD' : '#666'
+const planBg = (p: string) => p === 'elite' ? 'rgba(29,158,117,.12)' : p === 'business' ? 'rgba(127,119,221,.12)' : 'rgba(100,100,100,.12)'
+const statColor = (s: string) => s === 'actif' ? '#1D9E75' : s === 'suspendu' ? '#BA7517' : '#E24B4A'
+const statBg = (s: string) => s === 'actif' ? 'rgba(29,158,117,.12)' : s === 'suspendu' ? 'rgba(186,117,23,.12)' : 'rgba(226,75,74,.12)'
+
 export default function AdminUsersPage() {
   const supabase = createClient()
   const [users, setUsers] = useState<any[]>([])
@@ -13,194 +18,147 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterPlan, setFilterPlan] = useState('tous')
-  const [filterStatut, setFilterStatut] = useState('tous')
   const [selected, setSelected] = useState<any>(null)
   const [saving, setSaving] = useState(false)
-  const [userStats, setUserStats] = useState<Record<string, any>>({})
 
   useEffect(() => { load() }, [])
 
   async function load() {
     const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
-    const list = data || []
-    setUsers(list)
-    setFiltered(list)
+    setUsers(data || [])
+    setFiltered(data || [])
     setLoading(false)
-
-    // Charger stats par user
-    const stats: Record<string, any> = {}
-    for (const u of list.slice(0, 20)) {
-      const [cmd, fac] = await Promise.all([
-        supabase.from('commandes').select('*', { count: 'exact', head: true }).eq('user_id', u.id),
-        supabase.from('factures').select('*', { count: 'exact', head: true }).eq('user_id', u.id),
-      ])
-      stats[u.id] = { commandes: cmd.count || 0, factures: fac.count || 0 }
-    }
-    setUserStats(stats)
   }
 
   useEffect(() => {
-    let result = users
-    if (search) result = result.filter(u =>
-      (u.email || '').toLowerCase().includes(search.toLowerCase()) ||
-      (u.nom_boutique || '').toLowerCase().includes(search.toLowerCase()) ||
-      (u.telephone || '').includes(search)
-    )
-    if (filterPlan !== 'tous') result = result.filter(u => u.plan === filterPlan)
-    if (filterStatut !== 'tous') result = result.filter(u => (u.statut || 'actif') === filterStatut)
-    setFiltered(result)
-  }, [search, filterPlan, filterStatut, users])
+    let r = users
+    if (search) r = r.filter(u => (u.email || '').toLowerCase().includes(search.toLowerCase()) || (u.nom_boutique || '').toLowerCase().includes(search.toLowerCase()))
+    if (filterPlan !== 'tous') r = r.filter(u => u.plan === filterPlan)
+    setFiltered(r)
+  }, [search, filterPlan, users])
 
   async function updateUser(id: string, changes: any) {
     setSaving(true)
     await supabase.from('profiles').update(changes).eq('id', id)
     setSaving(false)
-    load()
     if (selected?.id === id) setSelected({ ...selected, ...changes })
-  }
-
-  async function supprimerUser(id: string) {
-    if (!confirm('Supprimer définitivement cet utilisateur ?')) return
-    await supabase.from('profiles').update({ statut: 'supprime' }).eq('id', id)
-    setSelected(null)
     load()
   }
 
-  const planColor = (p: string) => p === 'elite' ? '#1D9E75' : p === 'business' ? '#7F77DD' : '#888'
-  const statutColor = (s: string) => s === 'actif' ? '#1D9E75' : s === 'suspendu' ? '#BA7517' : '#E24B4A'
+  const inputStyle: React.CSSProperties = { background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 10, padding: '9px 14px', color: '#fff', fontSize: 13, outline: 'none', fontFamily: 'inherit' }
+  const selectStyle: React.CSSProperties = { ...inputStyle, cursor: 'pointer' }
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-[#7F77DD] border-t-transparent rounded-full animate-spin" /></div>
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}>
+      <div style={{ width: 36, height: 36, border: '2px solid #7F77DD', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  )
 
   return (
-    <div className="space-y-5 max-w-6xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white" style={{ fontFamily: 'Georgia,serif' }}>Utilisateurs</h1>
-          <p className="text-gray-500 text-sm mt-1">{filtered.length} / {users.length} utilisateurs</p>
-        </div>
+    <div style={{ maxWidth: 1100 }}>
+      <div style={{ marginBottom: 20 }}>
+        <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 700, letterSpacing: -.5 }}>Utilisateurs</h1>
+        <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 13, marginTop: 4 }}>{filtered.length} / {users.length} utilisateurs</p>
       </div>
 
       {/* Filtres */}
-      <div style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 16, padding: 16, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <input
-          value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="🔍 Rechercher email, boutique, téléphone..."
-          style={{ flex: 1, minWidth: 200, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 10, padding: '8px 14px', color: '#fff', fontSize: 14, outline: 'none' }} />
-        <select value={filterPlan} onChange={e => setFilterPlan(e.target.value)}
-          style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 10, padding: '8px 14px', color: '#fff', fontSize: 14 }}>
+      <div style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 14, padding: 14, display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Rechercher par email ou boutique..."
+          style={{ ...inputStyle, flex: 1, minWidth: 200 }} />
+        <select value={filterPlan} onChange={e => setFilterPlan(e.target.value)} style={{ ...selectStyle, minWidth: 140 }}>
           <option value="tous">Tous les plans</option>
           {PLANS.map(p => <option key={p} value={p}>{p.toUpperCase()}</option>)}
         </select>
-        <select value={filterStatut} onChange={e => setFilterStatut(e.target.value)}
-          style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 10, padding: '8px 14px', color: '#fff', fontSize: 14 }}>
-          <option value="tous">Tous statuts</option>
-          {STATUTS.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14 }}>
         {/* Liste */}
-        <div className="lg:col-span-2 space-y-2" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: '65vh', overflowY: 'auto', paddingRight: 4 }}>
           {filtered.map(u => (
-            <div key={u.id} onClick={() => setSelected(u)}
-              style={{
-                background: selected?.id === u.id ? 'rgba(127,119,221,.1)' : 'rgba(255,255,255,.03)',
-                border: `1px solid ${selected?.id === u.id ? 'rgba(127,119,221,.4)' : 'rgba(255,255,255,.07)'}`,
-                borderRadius: 14, padding: '14px 16px', cursor: 'pointer', transition: 'all .2s',
-                display: 'flex', alignItems: 'center', gap: 12
-              }}>
-              <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg,#7F77DD,#534AB7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+            <div key={u.id} onClick={() => setSelected(u)} style={{
+              background: selected?.id === u.id ? 'rgba(127,119,221,.1)' : 'rgba(255,255,255,.03)',
+              border: `1px solid ${selected?.id === u.id ? 'rgba(127,119,221,.35)' : 'rgba(255,255,255,.07)'}`,
+              borderRadius: 12, padding: '12px 14px', cursor: 'pointer', transition: 'all .15s',
+              display: 'flex', alignItems: 'center', gap: 12
+            }}>
+              <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg,#7F77DD,#534AB7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
                 {(u.nom_boutique || u.email || '?').slice(0, 1).toUpperCase()}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ color: '#fff', fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.nom_boutique || 'Sans nom'}</div>
-                <div style={{ color: '#555', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</div>
-                <div style={{ color: '#444', fontSize: 11, marginTop: 2 }}>{new Date(u.created_at).toLocaleDateString('fr-FR')} · {userStats[u.id]?.commandes || 0} cmd</div>
+                <div style={{ color: '#fff', fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.nom_boutique || 'Sans nom'}</div>
+                <div style={{ color: 'rgba(255,255,255,.3)', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end', flexShrink: 0 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: `${planColor(u.plan || 'basic')}22`, color: planColor(u.plan || 'basic') }}>{(u.plan || 'BASIC').toUpperCase()}</span>
-                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: `${statutColor(u.statut || 'actif')}22`, color: statutColor(u.statut || 'actif') }}>{(u.statut || 'actif').toUpperCase()}</span>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: planBg(u.plan || 'basic'), color: planColor(u.plan || 'basic') }}>{(u.plan || 'BASIC').toUpperCase()}</span>
+                <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: statBg(u.statut || 'actif'), color: statColor(u.statut || 'actif') }}>{(u.statut || 'actif').toUpperCase()}</span>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Détail utilisateur */}
-        <div style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 20, padding: 20 }}>
+        {/* Détail */}
+        <div style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 14, padding: 20, height: 'fit-content' }}>
           {!selected ? (
-            <div style={{ textAlign: 'center', color: '#444', paddingTop: 40 }}>
+            <div style={{ textAlign: 'center', padding: '48px 0', color: 'rgba(255,255,255,.2)' }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>👆</div>
-              <div>Clique sur un utilisateur pour voir les détails</div>
+              <div style={{ fontSize: 13 }}>Clique sur un utilisateur</div>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div style={{ textAlign: 'center', paddingBottom: 16, borderBottom: '1px solid rgba(255,255,255,.07)' }}>
-                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg,#7F77DD,#534AB7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, color: '#fff', margin: '0 auto 10px' }}>
+            <div>
+              <div style={{ textAlign: 'center', paddingBottom: 18, borderBottom: '1px solid rgba(255,255,255,.07)', marginBottom: 18 }}>
+                <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg,#7F77DD,#534AB7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 800, color: '#fff', margin: '0 auto 10px' }}>
                   {(selected.nom_boutique || selected.email || '?').slice(0, 1).toUpperCase()}
                 </div>
-                <div style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>{selected.nom_boutique || 'Sans nom'}</div>
-                <div style={{ color: '#555', fontSize: 12 }}>{selected.email}</div>
-                <div style={{ color: '#444', fontSize: 11, marginTop: 4 }}>Inscrit le {new Date(selected.created_at).toLocaleDateString('fr-FR')}</div>
+                <div style={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>{selected.nom_boutique || 'Sans nom'}</div>
+                <div style={{ color: 'rgba(255,255,255,.35)', fontSize: 12, marginTop: 2 }}>{selected.email}</div>
+                <div style={{ color: 'rgba(255,255,255,.2)', fontSize: 11, marginTop: 4 }}>Inscrit le {new Date(selected.created_at).toLocaleDateString('fr-FR')}</div>
               </div>
 
-              {/* Stats */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {[
-                  { l: 'Commandes', v: userStats[selected.id]?.commandes || 0 },
-                  { l: 'Factures', v: userStats[selected.id]?.factures || 0 },
-                ].map(s => (
-                  <div key={s.l} style={{ background: 'rgba(255,255,255,.04)', borderRadius: 10, padding: '10px', textAlign: 'center' }}>
-                    <div style={{ color: '#7F77DD', fontSize: 22, fontWeight: 800 }}>{s.v}</div>
-                    <div style={{ color: '#555', fontSize: 11 }}>{s.l}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Changer plan */}
-              <div>
-                <div style={{ color: '#888', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Plan abonnement</div>
+              {/* Plan */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>Plan abonnement</div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {PLANS.map(p => (
-                    <button key={p} onClick={() => updateUser(selected.id, { plan: p })} disabled={saving}
-                      style={{ flex: 1, padding: '8px 4px', borderRadius: 10, border: `1px solid ${(selected.plan || 'basic') === p ? planColor(p) : 'rgba(255,255,255,.1)'}`, background: (selected.plan || 'basic') === p ? `${planColor(p)}22` : 'transparent', color: (selected.plan || 'basic') === p ? planColor(p) : '#666', fontSize: 11, fontWeight: 700, cursor: 'pointer', textTransform: 'uppercase' }}>
-                      {p}
-                    </button>
+                    <button key={p} onClick={() => updateUser(selected.id, { plan: p })} disabled={saving} style={{
+                      flex: 1, padding: '8px 4px', borderRadius: 9, cursor: 'pointer', fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+                      border: `1px solid ${(selected.plan || 'basic') === p ? planColor(p) : 'rgba(255,255,255,.1)'}`,
+                      background: (selected.plan || 'basic') === p ? planBg(p) : 'transparent',
+                      color: (selected.plan || 'basic') === p ? planColor(p) : 'rgba(255,255,255,.3)',
+                      fontFamily: 'inherit', opacity: saving ? 0.6 : 1,
+                    }}>{p}</button>
                   ))}
                 </div>
               </div>
 
-              {/* Changer statut */}
-              <div>
-                <div style={{ color: '#888', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Statut du compte</div>
+              {/* Statut */}
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>Statut du compte</div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {STATUTS.map(s => (
-                    <button key={s} onClick={() => updateUser(selected.id, { statut: s })} disabled={saving}
-                      style={{ flex: 1, padding: '8px 4px', borderRadius: 10, border: `1px solid ${(selected.statut || 'actif') === s ? statutColor(s) : 'rgba(255,255,255,.1)'}`, background: (selected.statut || 'actif') === s ? `${statutColor(s)}22` : 'transparent', color: (selected.statut || 'actif') === s ? statutColor(s) : '#666', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                      {s}
-                    </button>
+                    <button key={s} onClick={() => updateUser(selected.id, { statut: s })} disabled={saving} style={{
+                      flex: 1, padding: '8px 4px', borderRadius: 9, cursor: 'pointer', fontSize: 10, fontWeight: 700,
+                      border: `1px solid ${(selected.statut || 'actif') === s ? statColor(s) : 'rgba(255,255,255,.1)'}`,
+                      background: (selected.statut || 'actif') === s ? statBg(s) : 'transparent',
+                      color: (selected.statut || 'actif') === s ? statColor(s) : 'rgba(255,255,255,.3)',
+                      fontFamily: 'inherit', opacity: saving ? 0.6 : 1,
+                    }}>{s}</button>
                   ))}
                 </div>
               </div>
 
               {/* Infos */}
-              <div style={{ background: 'rgba(255,255,255,.03)', borderRadius: 12, padding: '12px 14px' }}>
+              <div style={{ background: 'rgba(255,255,255,.03)', borderRadius: 10, padding: '10px 12px' }}>
                 {[
                   { l: 'Téléphone', v: selected.telephone || '—' },
-                  { l: 'Plan expire', v: selected.plan_expires ? new Date(selected.plan_expires).toLocaleDateString('fr-FR') : '—' },
-                  { l: 'ID', v: selected.id.slice(0, 8) + '...' },
+                  { l: 'ID Supabase', v: selected.id.slice(0, 12) + '...' },
                 ].map(i => (
-                  <div key={i.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.04)', fontSize: 13 }}>
-                    <span style={{ color: '#555' }}>{i.l}</span>
+                  <div key={i.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.04)', fontSize: 12 }}>
+                    <span style={{ color: 'rgba(255,255,255,.3)' }}>{i.l}</span>
                     <span style={{ color: '#fff' }}>{i.v}</span>
                   </div>
                 ))}
               </div>
-
-              {/* Actions danger */}
-              <button onClick={() => supprimerUser(selected.id)}
-                style={{ width: '100%', background: 'rgba(226,75,74,.1)', border: '1px solid rgba(226,75,74,.25)', color: '#E24B4A', borderRadius: 12, padding: '10px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                🗑️ Supprimer le compte
-              </button>
             </div>
           )}
         </div>
