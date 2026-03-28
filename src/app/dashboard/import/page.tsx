@@ -65,7 +65,7 @@ export default function ImportPage() {
       const json = await res.json()
       if (!res.ok || json.error) throw new Error(json.error || 'Impossible de lire le fichier.')
       const text = json.csv
-      const lines = text.split('\n').filter(l => l.trim())
+      const lines = (text as string).split('\n').filter((l: string) => l.trim())
       const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase())
 
       // Détecter les colonnes
