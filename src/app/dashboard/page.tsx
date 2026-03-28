@@ -5,104 +5,172 @@ import Link from 'next/link'
 
 const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n || 0))
 
-const STATUT_LABEL: Record<string, string> = {
-  en_attente: '⏳ En attente', en_livraison: '🚚 En livraison',
-  livre: '✅ Livré', annule: '❌ Annulé', echec: '⚠️ Échec'
+const STATUT_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
+  en_attente:   { label: 'En attente',   bg: '#FAEEDA', color: '#633806' },
+  en_livraison: { label: 'En livraison', bg: '#E6F1FB', color: '#0C447C' },
+  livre:        { label: 'Livré',        bg: '#E1F5EE', color: '#085041' },
+  annule:       { label: 'Annulé',       bg: '#FCEBEB', color: '#501313' },
+  echec:        { label: 'Échec',        bg: '#F1EFE8', color: '#444441' },
 }
 
 export default function DashboardPage() {
   const supabase = createClient()
-  const [stats, setStats] = useState({ ca: 0, benefice: 0, nb: 0, livrees: 0, en_cours: 0, annulees: 0 })
+  const [stats, setStats] = useState({ ca: 0, benefice: 0, nb: 0, livrees: 0, en_cours: 0, annulees: 0, panier_moyen: 0 })
   const [commandes, setCommandes] = useState<any[]>([])
+  const [hierBenefice, setHierBenefice] = useState(0)
   const [loading, setLoading] = useState(true)
 
   async function loadData() {
     const today = new Date(); today.setHours(0, 0, 0, 0)
-    const { data } = await supabase.from('commandes_detail').select('*')
-      .gte('created_at', today.toISOString())
-      .order('created_at', { ascending: false })
-    if (data) {
-      setCommandes(data.slice(0, 5))
-      setStats({
-        ca: data.reduce((s: number, c: any) => s + (c.total_vente || 0), 0),
-        benefice: data.filter((c: any) => c.statut === 'livre').reduce((s: number, c: any) => s + (c.benefice || 0), 0),
-        nb: data.length,
-        livrees: data.filter((c: any) => c.statut === 'livre').length,
-        en_cours: data.filter((c: any) => c.statut === 'en_livraison').length,
-        annulees: data.filter((c: any) => c.statut === 'annule').length,
-      })
-    }
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
+
+    const [cmdRes, hierRes] = await Promise.all([
+      supabase.from('commandes_detail').select('*').gte('created_at', today.toISOString()).order('created_at', { ascending: false }),
+      supabase.from('commandes_detail').select('benefice').gte('created_at', yesterday.toISOString()).lt('created_at', today.toISOString()),
+    ])
+
+    const data = cmdRes.data || []
+    const hier = hierRes.data || []
+    setCommandes(data.slice(0, 6))
+
+    const livrees = data.filter((c: any) => c.statut === 'livre')
+    const ca = livrees.reduce((s: number, c: any) => s + (c.total_vente || 0), 0)
+    const benefice = livrees.reduce((s: number, c: any) => s + (c.benefice || 0), 0)
+    const hierB = hier.filter((c: any) => c.statut === 'livre').reduce((s: number, c: any) => s + (c.benefice || 0), 0)
+
+    setStats({
+      ca, benefice,
+      nb: data.length,
+      livrees: livrees.length,
+      en_cours: data.filter((c: any) => c.statut === 'en_livraison').length,
+      annulees: data.filter((c: any) => ['annule', 'echec'].includes(c.statut)).length,
+      panier_moyen: livrees.length > 0 ? Math.round(ca / livrees.length) : 0,
+    })
+    setHierBenefice(hierB)
     setLoading(false)
   }
 
   useEffect(() => {
     loadData()
-    const ch = supabase.channel('dash').on('postgres_changes', { event: '*', schema: 'public', table: 'commandes' }, loadData).subscribe()
+    const ch = supabase.channel('dash-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'commandes' }, loadData)
+      .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [])
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-[#7F77DD] border-t-transparent rounded-full animate-spin" /></div>
+  const pct = hierBenefice > 0 ? Math.round(((stats.benefice - hierBenefice) / hierBenefice) * 100) : 0
+  const date = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+
+  if (loading) return (
+    <div className="flex justify-center items-center min-h-64">
+      <div className="w-8 h-8 border-2 border-[#7F77DD] border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4">
-      <p className="text-sm text-gray-400 capitalize">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+    <div className="max-w-2xl mx-auto space-y-3">
+      <p className="text-sm text-gray-400 capitalize font-medium">{date}</p>
 
-      <div style={{ background: 'linear-gradient(135deg,#7F77DD,#534AB7)', borderRadius: 24, padding: 22, color: '#fff', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: -20, right: -20, width: 100, height: 100, background: 'rgba(255,255,255,.08)', borderRadius: '50%' }} />
-        <p style={{ fontSize: 12, color: 'rgba(255,255,255,.65)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Mon bénéfice aujourd'hui</p>
-        <p style={{ fontSize: 38, fontWeight: 800, letterSpacing: -1, lineHeight: 1 }}>{fmt(stats.benefice)} <span style={{ fontSize: 20 }}>FCFA</span></p>
-        <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.2)', fontSize: 12, color: 'rgba(255,255,255,.55)', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-          <span>CA : {fmt(stats.ca)} F</span>
+      {/* Bénéfice card */}
+      <div style={{ background: 'linear-gradient(135deg,#0C0C1E,#1a1a3e)', borderRadius: 22, padding: '22px 24px', color: '#fff', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: -30, right: -30, width: 130, height: 130, background: 'rgba(127,119,221,.1)', borderRadius: '50%' }} />
+        <div style={{ position: 'absolute', bottom: -20, left: 40, width: 90, height: 90, background: 'rgba(29,158,117,.07)', borderRadius: '50%' }} />
+        <p style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', textTransform: 'uppercase', letterSpacing: '.12em', marginBottom: 8 }}>Mon bénéfice aujourd'hui</p>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, marginBottom: 14 }}>
+          <p style={{ fontSize: 38, fontWeight: 800, letterSpacing: -2, lineHeight: 1 }}>{fmt(stats.benefice)} <span style={{ fontSize: 20, fontWeight: 600, opacity: .7 }}>FCFA</span></p>
+          {pct !== 0 && (
+            <span style={{ background: pct > 0 ? 'rgba(29,158,117,.25)' : 'rgba(226,75,74,.25)', color: pct > 0 ? '#9FE1CB' : '#F09595', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, marginBottom: 2 }}>
+              {pct > 0 ? '+' : ''}{pct}% vs hier
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'rgba(255,255,255,.35)', flexWrap: 'wrap', paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.08)' }}>
+          <span>CA : <strong style={{ color: 'rgba(255,255,255,.65)' }}>{fmt(stats.ca)} F</strong></span>
           <span>·</span>
-          <span>{stats.nb} commandes</span>
+          <span><strong style={{ color: 'rgba(255,255,255,.65)' }}>{stats.nb}</strong> commandes</span>
+          <span>·</span>
+          <span>Panier : <strong style={{ color: 'rgba(255,255,255,.65)' }}>{fmt(stats.panier_moyen)} F</strong></span>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
         {[
-          { l: 'Commandes', v: stats.nb, c: 'text-gray-900' },
-          { l: 'Livrées', v: stats.livrees, c: 'text-green-600' },
-          { l: 'En livraison', v: stats.en_cours, c: 'text-blue-600' },
-          { l: 'Annulées', v: stats.annulees, c: 'text-red-500' },
+          { label: 'Total', val: stats.nb, color: '#0C0C1E', bg: '#fff' },
+          { label: 'Livrées', val: stats.livrees, color: '#085041', bg: '#E1F5EE' },
+          { label: 'En cours', val: stats.en_cours, color: '#0C447C', bg: '#E6F1FB' },
+          { label: 'Annulées', val: stats.annulees, color: '#501313', bg: '#FCEBEB' },
         ].map(s => (
-          <div key={s.l} className="card">
-            <p className="text-xs text-gray-400">{s.l}</p>
-            <p className={`text-3xl font-bold mt-1 ${s.c}`}>{s.v}</p>
+          <div key={s.label} style={{ background: s.bg, border: '0.5px solid rgba(0,0,0,.06)', borderRadius: 14, padding: '12px 8px', textAlign: 'center' }}>
+            <p style={{ fontSize: 10, color: s.color, opacity: .6, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{s.label}</p>
+            <p style={{ fontSize: 26, fontWeight: 800, color: s.color, letterSpacing: -1 }}>{s.val}</p>
           </div>
         ))}
       </div>
 
-      <Link href="/dashboard/commandes" className="block w-full text-center font-semibold py-4 rounded-2xl text-white transition-colors"
-        style={{ background: '#0C0C1E' }}>
-        + Nouvelle commande
+      {/* CTA */}
+      <Link href="/dashboard/commandes" style={{ display: 'block', width: '100%', textAlign: 'center', fontWeight: 700, padding: '16px', borderRadius: 18, color: '#fff', textDecoration: 'none', fontSize: 16, background: 'linear-gradient(135deg,#7F77DD,#534AB7)', boxShadow: '0 4px 20px rgba(127,119,221,.3)' }}>
+        ⚡ Nouvelle commande
       </Link>
 
-      <div className="card">
-        <div className="flex items-center justify-between mb-3">
-          <p className="font-medium text-sm">Commandes récentes</p>
-          <Link href="/dashboard/commandes" className="text-[#7F77DD] text-xs font-medium">Voir tout →</Link>
+      {/* Commandes récentes */}
+      <div className="card" style={{ borderRadius: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: '#0C0C1E' }}>Commandes du jour</p>
+          <Link href="/dashboard/commandes" style={{ color: '#7F77DD', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>Voir tout →</Link>
         </div>
+
         {commandes.length === 0 ? (
-          <p className="text-gray-400 text-sm text-center py-6">Aucune commande aujourd'hui</p>
+          <div style={{ textAlign: 'center', padding: '28px 0' }}>
+            <p style={{ fontSize: 36, marginBottom: 8 }}>📦</p>
+            <p style={{ color: '#aaa', fontSize: 13, marginBottom: 14 }}>Aucune commande aujourd'hui</p>
+            <Link href="/dashboard/commandes" className="btn-primary text-sm">Créer la première</Link>
+          </div>
         ) : (
-          <div className="space-y-3">
-            {commandes.map((c: any) => (
-              <div key={c.id} className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-[#EEEDFE] flex items-center justify-center text-xs font-bold text-[#534AB7] flex-shrink-0">
-                  {(c.client_nom || 'C').slice(0, 2).toUpperCase()}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {commandes.map((c: any) => {
+              const cfg = STATUT_CONFIG[c.statut] || STATUT_CONFIG['en_attente']
+              return (
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: '#F8F8FC', borderRadius: 13, border: '0.5px solid #eee' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EEEDFE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#534AB7', flexShrink: 0 }}>
+                    {(c.client_nom || c.client_tel || 'C').slice(0, 2).toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: '#0C0C1E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {c.client_nom || c.client_tel || 'Client'}
+                    </p>
+                    <p style={{ fontSize: 11, color: '#bbb', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
+                      {c.zone_nom ? `📍 ${c.zone_nom}` : ''} {c.numero_commande ? `· ${c.numero_commande}` : ''}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: c.statut === 'livre' ? '#1D9E75' : '#0C0C1E', marginBottom: 4 }}>
+                      {fmt(c.total_vente || 0)} F
+                    </p>
+                    <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.bg, color: cfg.color }}>
+                      {cfg.label}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{c.client_nom || c.client_tel || 'Client'}</p>
-                  <p className="text-xs text-gray-400 truncate">{c.zone_nom || '—'}</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-medium">{fmt(c.total_vente || 0)} F</p>
-                  <span className={`badge-${c.statut}`}>{STATUT_LABEL[c.statut]}</span>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
+      </div>
+
+      {/* Raccourcis rapides */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
+        {[
+          { label: 'Rapports', href: '/dashboard/rapports', icon: '📊', bg: '#E1F5EE', color: '#085041' },
+          { label: 'Factures', href: '/dashboard/factures', icon: '🧾', bg: '#EEEDFE', color: '#3C3489' },
+          { label: 'Stock', href: '/dashboard/stock', icon: '🏪', bg: '#FAEEDA', color: '#633806' },
+          { label: 'Import', href: '/dashboard/import', icon: '📥', bg: '#E6F1FB', color: '#0C447C' },
+        ].map(a => (
+          <Link key={a.href} href={a.href} style={{ background: a.bg, border: `0.5px solid ${a.color}33`, borderRadius: 14, padding: '14px 8px', textDecoration: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 22 }}>{a.icon}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: a.color, textAlign: 'center' }}>{a.label}</span>
+          </Link>
+        ))}
       </div>
     </div>
   )
