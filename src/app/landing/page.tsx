@@ -1,30 +1,95 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
-
-const FEATURES = [
-  { icon: '📦', titre: 'Commandes en temps réel', desc: 'Créez et gérez vos commandes en quelques secondes. Suivi du statut, livreur assigné, client notifié automatiquement.' },
-  { icon: '🔄', titre: 'Sync Google Sheet auto', desc: 'Connectez votre boutique Easy Sell ou Shopify. Chaque nouvelle commande arrive dans Dropzi en moins de 10 secondes.' },
-  { icon: '💰', titre: 'Bénéfice en temps réel', desc: 'Voyez votre bénéfice exact à chaque instant — après déduction des coûts produits et frais de livraison.' },
-  { icon: '🧾', titre: 'Factures premium', desc: '5 modèles de factures professionnels. Générez et partagez en PDF ou WhatsApp en un seul clic.' },
-  { icon: '🌍', titre: 'Fait pour l\'Afrique', desc: 'Zones de livraison flexibles, WhatsApp intégré, support FCFA. Dropzi comprend le marché africain.' },
-  { icon: '📊', titre: 'Rapports & analytics', desc: 'Bilans hebdomadaires et mensuels automatiques. Partagez vos performances sur WhatsApp.' },
-]
-
-const PLANS = [
-  { nom: 'Basic', prix: '3 000', couleur: '#888', bg: '#F8F8F8', features: ['50 commandes/mois', '5 produits', '1 livreur', 'Rapports basiques'] },
-  { nom: 'Business', prix: '5 000', couleur: '#7F77DD', bg: '#EEEDFE', star: true, features: ['Commandes illimitées', 'Produits illimités', 'Sync Google Sheet', 'Factures premium', 'WhatsApp intégré'] },
-  { nom: 'Elite', prix: '15 000', couleur: '#1D9E75', bg: '#E1F5EE', features: ['Tout Business +', 'Multi-boutiques', 'Analytics avancés', 'Support prioritaire', 'Formation 1-1'] },
-]
 
 const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(n)
 
+const PAIN_POINTS = [
+  'Tu passes des heures à recopier les commandes WhatsApp dans un tableau Excel.',
+  'Tu ne sais jamais exactement combien tu as gagné ce mois-ci.',
+  'Tes livreurs ne savent pas toujours où livrer ni quand.',
+  'Tu crées tes factures à la main sur WhatsApp — sans professionnel.',
+  'Quand ton stock tombe à zéro, tu t\'en rends compte trop tard.',
+]
+
+const FEATURES = [
+  {
+    icon: '🔄',
+    tag: 'SYNCHRONISATION',
+    titre: 'Connexion Shopify & Easy Sell en 1 minute',
+    desc: 'Colle juste le lien de ton Google Sheet. Dropzi détecte chaque nouvelle commande en moins de 10 secondes et la crée automatiquement dans ton dashboard. Zéro saisie manuelle. Zéro erreur.',
+    points: ['Détection automatique en 10 secondes', 'Compatible Easy Sell, Shopify, WooCommerce', 'Import de toutes les colonnes : client, produit, adresse, prix', 'Notification immédiate dans l\'app'],
+    color: '#7F77DD',
+    bg: '#EEEDFE',
+  },
+  {
+    icon: '💰',
+    tag: 'FINANCES',
+    titre: 'Vois ton bénéfice exact en temps réel',
+    desc: 'Plus besoin de calculer à la main. Dropzi calcule automatiquement ton bénéfice après déduction du coût d\'achat, des frais de livraison et de toutes tes dépenses. À chaque commande livrée.',
+    points: ['Bénéfice brut et net calculés automatiquement', 'Comparaison avec hier, la semaine, le mois', 'Suivi du CA, panier moyen, taux de livraison', 'Rapports hebdomadaires et mensuels automatiques'],
+    color: '#1D9E75',
+    bg: '#E1F5EE',
+  },
+  {
+    icon: '📦',
+    tag: 'STOCK',
+    titre: 'Suivi de stock automatique à chaque livraison',
+    desc: 'Ton stock se met à jour tout seul dès qu\'une commande est marquée livrée. Tu reçois une alerte quand un produit est sur le point de s\'épuiser. Plus jamais de commande impossible à honorer.',
+    points: ['Déduction automatique du stock à la livraison', 'Alerte stock faible personnalisable', 'Historique des mouvements de stock', 'Gestion multi-produits et multi-variantes'],
+    color: '#BA7517',
+    bg: '#FAEEDA',
+  },
+  {
+    icon: '🔔',
+    tag: 'NOTIFICATIONS',
+    titre: 'Notifications en temps réel partout',
+    desc: 'Reçois une notification dans l\'app dès qu\'une nouvelle commande arrive, dès qu\'un livreur marque une livraison, ou dès qu\'un stock est critique. Tu es toujours informé — même le téléphone dans la poche.',
+    points: ['Notifications in-app en temps réel', 'Alertes commandes Easy Sell importées', 'Alertes stock critique', 'Historique complet des notifications'],
+    color: '#E24B4A',
+    bg: '#FCEBEB',
+  },
+  {
+    icon: '🧾',
+    tag: 'FACTURES',
+    titre: '5 modèles de factures professionnels',
+    desc: 'Génère une facture en 1 clic depuis n\'importe quelle commande. Choisis parmi 5 modèles premium — Sombre, Corporate, Minimaliste, Africain, Luxe. Partage en PDF ou directement sur WhatsApp.',
+    points: ['5 modèles premium personnalisables', 'Génération en 1 clic depuis la commande', 'Export PDF haute qualité', 'Partage WhatsApp en un tap'],
+    color: '#534AB7',
+    bg: '#EEEDFE',
+  },
+  {
+    icon: '🚚',
+    tag: 'LIVRAISONS',
+    titre: 'Gestion des livreurs et zones simplifiée',
+    desc: 'Crée tes zones de livraison avec leurs coûts. Assigne un livreur à chaque commande. Le livreur reçoit les détails sur WhatsApp automatiquement. Suivi du statut en temps réel.',
+    points: ['Zones de livraison avec coûts personnalisés', 'Assignation livreur en 1 clic', 'Notification WhatsApp automatique au livreur', 'Suivi statut : En attente → En livraison → Livré'],
+    color: '#378ADD',
+    bg: '#E6F1FB',
+  },
+]
+
+const TEMOIGNAGES = [
+  { nom: 'Fatou D.', boutique: 'FashionDakar', texte: 'Avant Dropzi je passais 2h par jour à recopier les commandes WhatsApp. Maintenant ça se fait tout seul en 10 secondes. J\'ai gagné du temps et de l\'argent.', note: 5 },
+  { nom: 'Moussa S.', boutique: 'ElectroPro SN', texte: 'Le suivi du bénéfice en temps réel a changé ma façon de gérer mon business. Je sais exactement où j\'en suis à chaque instant.', note: 5 },
+  { nom: 'Aïcha B.', boutique: 'CosmétiqueAfrik', texte: 'Les factures professionnelles ont changé l\'image de ma boutique. Mes clients me font plus confiance maintenant.', note: 5 },
+]
+
+const STEPS = [
+  { num: '01', titre: 'Crée ton compte', desc: 'Inscription en 30 secondes. Aucune carte bancaire requise. 7 jours gratuits complets.' },
+  { num: '02', titre: 'Connecte ta boutique', desc: 'Colle le lien de ton Google Sheet Easy Sell ou Shopify. Dropzi se connecte en 1 minute.' },
+  { num: '03', titre: 'Gère en automatique', desc: 'Les commandes arrivent toutes seules. Tu gères, livres, factures — Dropzi calcule tout.' },
+]
+
 export default function LandingPage() {
-  const [typed, setTyped] = useState('')
-  const [wordIdx, setWordIdx] = useState(0)
-  const [activeFeat, setActiveFeat] = useState(0)
   const [scrolled, setScrolled] = useState(false)
-  const words = ['Gérez.', 'Livrez.', 'Encaissez.', 'Grandissez.']
+  const [activePain, setActivePain] = useState(0)
+  const [activeFeat, setActiveFeat] = useState(0)
+  const [counter1, setCounter1] = useState(0)
+  const [counter2, setCounter2] = useState(0)
+  const [counter3, setCounter3] = useState(0)
+  const statsRef = useRef<HTMLDivElement>(null)
+  const hasAnimated = useRef(false)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40)
@@ -33,50 +98,59 @@ export default function LandingPage() {
   }, [])
 
   useEffect(() => {
-    let i = 0, del = false
-    const word = words[wordIdx]
-    const t = setInterval(() => {
-      if (!del) { i++; setTyped(word.slice(0, i)); if (i === word.length) { del = true } }
-      else { i--; setTyped(word.slice(0, i)); if (i === 0) { del = false; setWordIdx(w => (w + 1) % words.length); clearInterval(t) } }
-    }, del ? 50 : 90)
+    const t = setInterval(() => setActivePain(p => (p + 1) % PAIN_POINTS.length), 2800)
     return () => clearInterval(t)
-  }, [wordIdx])
+  }, [])
 
   useEffect(() => {
-    const t = setInterval(() => setActiveFeat(f => (f + 1) % FEATURES.length), 3000)
-    return () => clearInterval(t)
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && !hasAnimated.current) {
+        hasAnimated.current = true
+        let i = 0
+        const t = setInterval(() => {
+          i++
+          setCounter1(Math.min(Math.round(i * 38 / 60), 38))
+          setCounter2(Math.min(Math.round(i * 10 / 60), 10))
+          setCounter3(Math.min(Math.round(i * 97 / 60), 97))
+          if (i >= 60) clearInterval(t)
+        }, 25)
+      }
+    }, { threshold: .3 })
+    if (statsRef.current) observer.observe(statsRef.current)
+    return () => observer.disconnect()
   }, [])
 
   return (
     <div style={{ background: '#06060F', color: '#fff', fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif', overflowX: 'hidden' }}>
-
       <style>{`
-        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
-        @keyframes pulse{0%,100%{opacity:.4}50%{opacity:.8}}
-        @keyframes spin{to{transform:rotate(360deg)}}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
         @keyframes glow{0%,100%{box-shadow:0 0 40px rgba(127,119,221,.3)}50%{box-shadow:0 0 80px rgba(127,119,221,.6)}}
-        .fade-up{animation:fadeUp .7s ease forwards;}
-        .float{animation:float 4s ease-in-out infinite;}
+        @keyframes shine{from{left:-100%}to{left:200%}}
+        .fade-up{animation:fadeUp .6s ease forwards;}
+        .float{animation:float 5s ease-in-out infinite;}
         .glow{animation:glow 3s ease-in-out infinite;}
-        .feat-btn{transition:all .2s;cursor:pointer;border:none;background:none;}
+        a,button{cursor:pointer;}
+        .nav-link{color:rgba(255,255,255,.5);font-size:14px;text-decoration:none;transition:color .2s;}
+        .nav-link:hover{color:#fff;}
+        .feat-tab{transition:all .2s;border:none;cursor:pointer;font-family:inherit;}
         .plan-card{transition:transform .2s,box-shadow .2s;}
-        .plan-card:hover{transform:translateY(-4px);box-shadow:0 20px 60px rgba(0,0,0,.3)!important;}
-        .cta-btn{transition:all .2s;cursor:pointer;}
-        .cta-btn:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(127,119,221,.5)!important;}
+        .plan-card:hover{transform:translateY(-4px);}
+        .cta-main{position:relative;overflow:hidden;}
+        .cta-main::after{content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);animation:shine 2.5s ease-in-out infinite;}
         @media(max-width:768px){
-          .hero-grid{grid-template-columns:1fr!important;}
-          .feat-grid{grid-template-columns:1fr!important;}
-          .plans-grid{grid-template-columns:1fr!important;}
+          .hero-grid,.feat-grid,.steps-grid,.plans-grid{grid-template-columns:1fr!important;}
           .stats-grid{grid-template-columns:repeat(2,1fr)!important;}
-          .hero-title{font-size:clamp(36px,10vw,80px)!important;}
-          .hide-mobile{display:none!important;}
+          .hero-title{font-size:clamp(36px,10vw,56px)!important;}
           .nav-links{display:none!important;}
+          .pain-box{font-size:15px!important;}
+          .testi-grid{grid-template-columns:1fr!important;}
         }
       `}</style>
 
       {/* ── NAV ── */}
-      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '0 5vw', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: scrolled ? 'rgba(6,6,15,.92)' : 'transparent', backdropFilter: scrolled ? 'blur(20px)' : 'none', borderBottom: scrolled ? '1px solid rgba(255,255,255,.07)' : 'none', transition: 'all .3s' }}>
+      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '0 5vw', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: scrolled ? 'rgba(6,6,15,.95)' : 'transparent', backdropFilter: scrolled ? 'blur(20px)' : 'none', borderBottom: scrolled ? '1px solid rgba(255,255,255,.07)' : 'none', transition: 'all .3s' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#7F77DD,#534AB7)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(127,119,221,.5)' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 5L12 3L21 5L19 15L12 20L5 15Z" stroke="white" strokeWidth="1.8" strokeLinejoin="round"/><path d="M3 5L21 5" stroke="white" strokeWidth="1.8"/></svg>
@@ -84,201 +158,312 @@ export default function LandingPage() {
           <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: -.5 }}>Dropzi</span>
         </div>
         <div className="nav-links" style={{ display: 'flex', gap: 28, alignItems: 'center' }}>
-          {[['#features', 'Fonctionnalités'], ['#pricing', 'Tarifs'], ['/tutoriels', 'Tutoriels']].map(([h, l]) => (
-            <Link key={h} href={h} style={{ color: 'rgba(255,255,255,.5)', fontSize: 14, textDecoration: 'none', transition: 'color .2s' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,.5)')}>{l}</Link>
-          ))}
+          <a href="#features" className="nav-link">Fonctionnalités</a>
+          <a href="#how" className="nav-link">Comment ça marche</a>
+          <a href="#pricing" className="nav-link">Tarifs</a>
+          <Link href="/tutoriels" className="nav-link">Tutoriels</Link>
         </div>
         <Link href="/login" style={{ background: 'linear-gradient(135deg,#7F77DD,#534AB7)', color: '#fff', padding: '9px 22px', borderRadius: 12, fontSize: 14, fontWeight: 700, textDecoration: 'none', boxShadow: '0 4px 20px rgba(127,119,221,.4)' }}>
-          Commencer →
+          Essai gratuit →
         </Link>
       </nav>
 
       {/* ── HERO ── */}
-      <section style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', position: 'relative', padding: '100px 5vw 0', overflow: 'hidden' }}>
-        {/* Orbes décoratifs */}
-        <div style={{ position: 'absolute', top: '10%', left: '-10%', width: 500, height: 500, background: 'radial-gradient(circle,rgba(127,119,221,.15),transparent 70%)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: '10%', right: '-5%', width: 400, height: 400, background: 'radial-gradient(circle,rgba(29,158,117,.1),transparent 70%)', pointerEvents: 'none' }} />
+      <section style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', padding: '100px 5vw 60px', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: '15%', left: '-8%', width: 500, height: 500, background: 'radial-gradient(circle,rgba(127,119,221,.18),transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: '10%', right: '-5%', width: 400, height: 400, background: 'radial-gradient(circle,rgba(29,158,117,.12),transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px)', backgroundSize: '60px 60px', pointerEvents: 'none' }} />
 
-        {/* Grille déco */}
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px)', backgroundSize: '60px 60px', pointerEvents: 'none' }} />
-
-        <div className="hero-grid" style={{ maxWidth: 1200, margin: '0 auto', width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'center' }}>
+        <div className="hero-grid" style={{ maxWidth: 1100, margin: '0 auto', width: '100%', display: 'grid', gridTemplateColumns: '1.1fr .9fr', gap: 60, alignItems: 'center' }}>
           <div className="fade-up">
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(127,119,221,.12)', border: '1px solid rgba(127,119,221,.25)', borderRadius: 100, padding: '5px 16px', marginBottom: 28 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#1D9E75', display: 'inline-block', animation: 'pulse 2s infinite' }} />
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,.6)', fontWeight: 500 }}>Fait pour les commerçants africains</span>
+            {/* Badge */}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(127,119,221,.1)', border: '1px solid rgba(127,119,221,.25)', borderRadius: 100, padding: '6px 16px', marginBottom: 28 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#1D9E75', display: 'inline-block', animation: 'pulse 2s infinite', flexShrink: 0 }} />
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,.65)', fontWeight: 600 }}>🌍 Le dashboard e-commerce fait pour l'Afrique</span>
             </div>
 
-            <h1 className="hero-title" style={{ fontSize: 'clamp(44px,5.5vw,80px)', fontWeight: 800, lineHeight: 1.05, letterSpacing: -3, marginBottom: 12 }}>
-              Vends plus.<br />
-              <span style={{ background: 'linear-gradient(90deg,#7F77DD,#AFA9EC,#7F77DD)', backgroundSize: '200%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-                {typed}<span style={{ opacity: Math.random() > .5 ? 1 : 0 }}>|</span>
-              </span>
+            <h1 className="hero-title" style={{ fontSize: 'clamp(40px,5vw,72px)', fontWeight: 800, lineHeight: 1.05, letterSpacing: -3, marginBottom: 20 }}>
+              Tes commandes Shopify<br />
+              <span style={{ background: 'linear-gradient(90deg,#7F77DD,#AFA9EC)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>dans Dropzi en 10 secondes.</span><br />
+              <span style={{ fontSize: '75%', color: 'rgba(255,255,255,.9)' }}>Automatiquement.</span>
             </h1>
 
-            <p style={{ fontSize: 17, color: 'rgba(255,255,255,.45)', lineHeight: 1.8, maxWidth: 440, marginBottom: 36 }}>
-              Le premier outil de gestion e-commerce pensé pour l'Afrique. Commandes, livraisons, factures, bénéfices — tout en un.
+            <p style={{ fontSize: 18, color: 'rgba(255,255,255,.5)', lineHeight: 1.75, maxWidth: 480, marginBottom: 14 }}>
+              Synchronisation Google Sheet automatique, suivi bénéfice en temps réel, stock intelligent, factures premium, notifications instantanées.
+            </p>
+            <p style={{ fontSize: 15, color: 'rgba(255,255,255,.3)', marginBottom: 36 }}>
+              Sans Excel. Sans WhatsApp copier-coller. Sans maux de tête.
             </p>
 
-            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-              <Link href="/login" className="cta-btn glow" style={{ background: 'linear-gradient(135deg,#7F77DD,#534AB7)', color: '#fff', padding: '16px 36px', borderRadius: 16, fontSize: 16, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-                Commencer gratuitement <span style={{ fontSize: 20 }}>→</span>
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 48 }}>
+              <Link href="/login" className="cta-main glow" style={{ background: 'linear-gradient(135deg,#7F77DD,#534AB7)', color: '#fff', padding: '17px 38px', borderRadius: 18, fontSize: 17, fontWeight: 800, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 10, boxShadow: '0 8px 32px rgba(127,119,221,.4)' }}>
+                Commencer gratuitement <span style={{ fontSize: 22 }}>→</span>
               </Link>
-              <Link href="/tutoriels" className="cta-btn" style={{ background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)', color: 'rgba(255,255,255,.7)', padding: '16px 28px', borderRadius: 16, fontSize: 15, fontWeight: 500, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                ▶ Voir comment ça marche
+              <Link href="/tutoriels" style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.12)', color: 'rgba(255,255,255,.6)', padding: '17px 28px', borderRadius: 18, fontSize: 15, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                ▶ Voir la démo
               </Link>
             </div>
 
-            <div style={{ display: 'flex', gap: 24, marginTop: 40, flexWrap: 'wrap' }}>
-              {[['38+', 'Boutiques actives'], ['10s', 'Sync automatique'], ['7j', 'Essai gratuit']].map(([v, l]) => (
-                <div key={l}>
-                  <div style={{ fontSize: 26, fontWeight: 800, color: '#7F77DD', letterSpacing: -1 }}>{v}</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{l}</div>
-                </div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              {['✓ 7 jours gratuits', '✓ Sans carte bancaire', '✓ Annulation immédiate'].map(t => (
+                <span key={t} style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', marginRight: 8 }}>{t}</span>
               ))}
             </div>
           </div>
 
           {/* Dashboard preview */}
-          <div className="float hide-mobile" style={{ position: 'relative' }}>
-            <div style={{ background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 24, padding: 24, boxShadow: '0 40px 120px rgba(0,0,0,.6)' }}>
-              {/* Mini header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#E24B4A' }} />
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#BA7517' }} />
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#1D9E75' }} />
-                <span style={{ marginLeft: 8, fontSize: 11, color: 'rgba(255,255,255,.3)' }}>dropzi.netlify.app</span>
+          <div className="float" style={{ position: 'relative' }}>
+            <div style={{ background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 26, padding: 22, boxShadow: '0 40px 100px rgba(0,0,0,.7)' }}>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+                {['#E24B4A','#BA7517','#1D9E75'].map(c => <div key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />)}
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,.2)', marginLeft: 8 }}>dropzi.netlify.app/dashboard</span>
               </div>
-              {/* Bénéfice card */}
-              <div style={{ background: 'linear-gradient(135deg,#0C0C1E,#1a1a3e)', borderRadius: 18, padding: 20, marginBottom: 14, position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, background: 'rgba(127,119,221,.15)', borderRadius: '50%' }} />
-                <p style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 6 }}>Bénéfice aujourd'hui</p>
-                <p style={{ fontSize: 34, fontWeight: 800, letterSpacing: -2 }}>87 500 <span style={{ fontSize: 18, opacity: .6 }}>F</span></p>
-                <div style={{ display: 'flex', gap: 16, marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,.35)' }}>
-                  <span>CA : 310 000 F</span>
-                  <span>· 24 commandes</span>
-                  <span style={{ marginLeft: 'auto', background: 'rgba(29,158,117,.2)', color: '#9FE1CB', padding: '2px 8px', borderRadius: 20, fontWeight: 700 }}>+12%</span>
+              <div style={{ background: 'linear-gradient(135deg,#0C0C1E,#1a1a3e)', borderRadius: 18, padding: 18, marginBottom: 12 }}>
+                <p style={{ fontSize: 9, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 5 }}>Bénéfice aujourd'hui</p>
+                <p style={{ fontSize: 36, fontWeight: 800, letterSpacing: -2, color: '#fff', lineHeight: 1 }}>127 500 <span style={{ fontSize: 16, opacity: .5 }}>F</span></p>
+                <div style={{ display: 'flex', gap: 12, marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,.3)', paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.07)' }}>
+                  <span>CA : 420 000 F</span><span>·</span><span>38 commandes</span>
+                  <span style={{ marginLeft: 'auto', background: 'rgba(29,158,117,.2)', color: '#9FE1CB', padding: '2px 8px', borderRadius: 20, fontWeight: 700 }}>+18%</span>
                 </div>
               </div>
-              {/* Stats */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 14 }}>
-                {[['18', 'Livrées', '#1D9E75'], ['4', 'En cours', '#378ADD'], ['2', 'Annulées', '#E24B4A'], ['12.9k', 'Panier', '#7F77DD']].map(([v, l, c]) => (
-                  <div key={l} style={{ background: 'rgba(255,255,255,.04)', borderRadius: 12, padding: '10px 6px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: c as string, letterSpacing: -.5 }}>{v}</div>
-                    <div style={{ fontSize: 9, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{l}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 12 }}>
+                {[['24','Livrées','#1D9E75'],['8','En cours','#378ADD'],['2','Annulées','#E24B4A'],['14k','Panier','#7F77DD']].map(([v,l,c]) => (
+                  <div key={l} style={{ background: 'rgba(255,255,255,.04)', borderRadius: 10, padding: '8px 4px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: c, letterSpacing: -.5 }}>{v}</div>
+                    <div style={{ fontSize: 8, color: 'rgba(255,255,255,.25)', marginTop: 2 }}>{l}</div>
                   </div>
                 ))}
               </div>
-              {/* Commande sample */}
-              {[['Fatou Diallo', '221 77 000 0000', 'Livré', '#1D9E75', '#E1F5EE'], ['Moussa Sow', '221 78 000 0000', 'En livraison', '#378ADD', '#E6F1FB']].map(([n, t, s, c, bg]) => (
-                <div key={n as string} style={{ background: 'rgba(255,255,255,.04)', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(127,119,221,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#AFA9EC', flexShrink: 0 }}>{(n as string).slice(0, 2).toUpperCase()}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{n as string}</div>
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.3)' }}>{t as string}</div>
-                  </div>
-                  <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: bg as string, color: c as string }}>{s as string}</span>
+              {/* Notification live */}
+              <div style={{ background: 'rgba(29,158,117,.12)', border: '1px solid rgba(29,158,117,.25)', borderRadius: 12, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1D9E75', animation: 'pulse 1.5s infinite', flexShrink: 0 }} />
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#9FE1CB' }}>3 nouvelles commandes Easy Sell</p>
+                  <p style={{ fontSize: 10, color: 'rgba(255,255,255,.3)' }}>Synchronisées automatiquement · il y a 8 secondes</p>
                 </div>
-              ))}
+              </div>
+            </div>
+
+            {/* Badge flottant */}
+            <div style={{ position: 'absolute', top: -16, right: -16, background: '#1D9E75', color: '#fff', borderRadius: 14, padding: '8px 14px', fontSize: 12, fontWeight: 800, boxShadow: '0 8px 24px rgba(29,158,117,.4)', whiteSpace: 'nowrap' }}>
+              ⚡ Sync en 10 secondes
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── COURBE SVG 1 ── */}
-      <div style={{ marginTop: -2, lineHeight: 0 }}>
-        <svg viewBox="0 0 1440 80" preserveAspectRatio="none" style={{ width: '100%', height: 80, display: 'block' }}>
-          <path d="M0,0 C360,80 1080,0 1440,60 L1440,80 L0,80 Z" fill="#0D0D20" />
-        </svg>
-      </div>
-
-      {/* ── FEATURES ── */}
-      <section id="features" style={{ background: '#0D0D20', padding: '80px 5vw' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 60 }}>
-            <p style={{ fontSize: 12, fontWeight: 700, color: '#7F77DD', textTransform: 'uppercase', letterSpacing: '.15em', marginBottom: 12 }}>Fonctionnalités</p>
-            <h2 style={{ fontSize: 'clamp(28px,4vw,52px)', fontWeight: 800, letterSpacing: -2, lineHeight: 1.1, marginBottom: 16 }}>
-              Tout ce dont tu as besoin<br />
-              <span style={{ color: '#7F77DD' }}>pour gérer ton business</span>
-            </h2>
-            <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 16, maxWidth: 480, margin: '0 auto' }}>De la première commande au bilan mensuel — Dropzi gère tout automatiquement.</p>
+      {/* ── PAIN POINTS ── */}
+      <section style={{ background: '#0A0A18', padding: '70px 5vw' }}>
+        <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center' }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: '#E24B4A', textTransform: 'uppercase', letterSpacing: '.15em', marginBottom: 20 }}>On te comprend</p>
+          <h2 style={{ fontSize: 'clamp(24px,3.5vw,42px)', fontWeight: 800, letterSpacing: -1.5, marginBottom: 40, lineHeight: 1.2 }}>
+            Tu gères une boutique en ligne.<br />
+            <span style={{ color: 'rgba(255,255,255,.4)' }}>Ces problèmes te parlent ?</span>
+          </h2>
+          <div className="pain-box" style={{ background: 'rgba(226,75,74,.08)', border: '1px solid rgba(226,75,74,.2)', borderRadius: 20, padding: '28px 32px', fontSize: 18, fontWeight: 600, color: 'rgba(255,255,255,.8)', lineHeight: 1.6, minHeight: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .3s' }}>
+            <span style={{ fontSize: 22, marginRight: 12 }}>😩</span> {PAIN_POINTS[activePain]}
           </div>
-
-          <div className="feat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
-            {FEATURES.map((f, i) => (
-              <div key={i} onMouseEnter={() => setActiveFeat(i)} style={{ background: activeFeat === i ? 'rgba(127,119,221,.1)' : 'rgba(255,255,255,.03)', border: `1px solid ${activeFeat === i ? 'rgba(127,119,221,.3)' : 'rgba(255,255,255,.07)'}`, borderRadius: 20, padding: 24, cursor: 'default', transition: 'all .3s' }}>
-                <div style={{ width: 48, height: 48, borderRadius: 14, background: activeFeat === i ? 'rgba(127,119,221,.2)' : 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, marginBottom: 16, transition: 'all .3s' }}>{f.icon}</div>
-                <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 10, color: activeFeat === i ? '#fff' : 'rgba(255,255,255,.8)' }}>{f.titre}</h3>
-                <p style={{ fontSize: 13, color: 'rgba(255,255,255,.4)', lineHeight: 1.7 }}>{f.desc}</p>
-              </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16 }}>
+            {PAIN_POINTS.map((_, i) => (
+              <button key={i} onClick={() => setActivePain(i)} style={{ width: i === activePain ? 24 : 8, height: 8, borderRadius: 4, background: i === activePain ? '#E24B4A' : 'rgba(255,255,255,.15)', border: 'none', transition: 'all .3s' }} />
             ))}
+          </div>
+          <div style={{ marginTop: 40, background: 'linear-gradient(135deg,rgba(127,119,221,.1),rgba(29,158,117,.08))', border: '1px solid rgba(127,119,221,.2)', borderRadius: 20, padding: '24px 32px' }}>
+            <p style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 8 }}>Dropzi résout tout ça — en automatique.</p>
+            <p style={{ fontSize: 15, color: 'rgba(255,255,255,.45)' }}>Une seule app. Zéro Excel. Zéro recopie. Zéro stress.</p>
           </div>
         </div>
       </section>
 
-      {/* ── COURBE SVG 2 ── */}
-      <div style={{ lineHeight: 0, background: '#0D0D20' }}>
-        <svg viewBox="0 0 1440 80" preserveAspectRatio="none" style={{ width: '100%', height: 80, display: 'block' }}>
-          <path d="M0,60 C480,0 960,80 1440,20 L1440,80 L0,80 Z" fill="#080816" />
+      {/* Courbe */}
+      <div style={{ background: '#0A0A18', lineHeight: 0 }}>
+        <svg viewBox="0 0 1440 60" preserveAspectRatio="none" style={{ width: '100%', height: 60, display: 'block' }}>
+          <path d="M0,0 C480,60 960,0 1440,40 L1440,60 L0,60 Z" fill="#06060F" />
         </svg>
       </div>
 
       {/* ── STATS ── */}
-      <section style={{ background: '#080816', padding: '80px 5vw' }}>
+      <div ref={statsRef} style={{ background: '#06060F', padding: '60px 5vw' }}>
+        <div className="stats-grid" style={{ maxWidth: 900, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20 }}>
+          {[
+            { val: counter1 + '+', lbl: 'boutiques actives', sub: 'font confiance à Dropzi', color: '#7F77DD' },
+            { val: counter2 + 's', lbl: 'synchronisation', sub: 'Google Sheet → Dropzi', color: '#1D9E75' },
+            { val: counter3 + '%', lbl: 'satisfaction', sub: 'utilisateurs satisfaits', color: '#BA7517' },
+          ].map(s => (
+            <div key={s.lbl} style={{ textAlign: 'center', background: 'rgba(255,255,255,.03)', borderRadius: 20, padding: '32px 16px', border: '1px solid rgba(255,255,255,.06)' }}>
+              <div style={{ fontSize: 52, fontWeight: 800, color: s.color, letterSpacing: -2.5, lineHeight: 1, marginBottom: 10 }}>{s.val}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{s.lbl}</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.3)' }}>{s.sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Courbe */}
+      <div style={{ background: '#06060F', lineHeight: 0 }}>
+        <svg viewBox="0 0 1440 60" preserveAspectRatio="none" style={{ width: '100%', height: 60, display: 'block' }}>
+          <path d="M0,40 C360,0 1080,60 1440,20 L1440,60 L0,60 Z" fill="#0D0D22" />
+        </svg>
+      </div>
+
+      {/* ── FEATURES ── */}
+      <section id="features" style={{ background: '#0D0D22', padding: '80px 5vw' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 56 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: '#7F77DD', textTransform: 'uppercase', letterSpacing: '.15em', marginBottom: 12 }}>Ce que fait Dropzi</p>
+            <h2 style={{ fontSize: 'clamp(28px,4vw,52px)', fontWeight: 800, letterSpacing: -2, lineHeight: 1.1, marginBottom: 16 }}>6 fonctionnalités qui changent tout</h2>
+            <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 16, maxWidth: 520, margin: '0 auto' }}>Chaque fonctionnalité a été pensée pour les réalités du commerce en Afrique.</p>
+          </div>
+
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 40 }}>
+            {FEATURES.map((f, i) => (
+              <button key={i} className="feat-tab" onClick={() => setActiveFeat(i)} style={{ padding: '8px 18px', borderRadius: 100, fontSize: 13, fontWeight: 700, background: activeFeat === i ? f.color : 'rgba(255,255,255,.05)', color: activeFeat === i ? '#fff' : 'rgba(255,255,255,.45)', border: `1px solid ${activeFeat === i ? f.color : 'rgba(255,255,255,.1)'}` }}>
+                {f.icon} {f.tag}
+              </button>
+            ))}
+          </div>
+
+          {/* Feature active */}
+          {FEATURES.map((f, i) => i === activeFeat && (
+            <div key={i} className="feat-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, alignItems: 'center' }}>
+              <div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: f.bg + '22', border: `1px solid ${f.color}44`, borderRadius: 10, padding: '5px 14px', marginBottom: 20 }}>
+                  <span style={{ fontSize: 16 }}>{f.icon}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: f.color, textTransform: 'uppercase', letterSpacing: '.1em' }}>{f.tag}</span>
+                </div>
+                <h3 style={{ fontSize: 'clamp(22px,3vw,34px)', fontWeight: 800, letterSpacing: -1.5, marginBottom: 18, lineHeight: 1.2 }}>{f.titre}</h3>
+                <p style={{ fontSize: 15, color: 'rgba(255,255,255,.5)', lineHeight: 1.8, marginBottom: 28 }}>{f.desc}</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {f.points.map((p, j) => (
+                    <div key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: f.bg + '33', border: `1.5px solid ${f.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: f.color, flexShrink: 0, fontWeight: 800 }}>✓</div>
+                      <span style={{ fontSize: 14, color: 'rgba(255,255,255,.7)', lineHeight: 1.5 }}>{p}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ background: f.bg + '08', border: `1px solid ${f.color}22`, borderRadius: 24, padding: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 280 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 80, marginBottom: 20 }}>{f.icon}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: f.color, marginBottom: 8 }}>{f.titre}</div>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>{f.desc.split('.')[0]}.</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Courbe */}
+      <div style={{ background: '#0D0D22', lineHeight: 0 }}>
+        <svg viewBox="0 0 1440 60" preserveAspectRatio="none" style={{ width: '100%', height: 60, display: 'block' }}>
+          <path d="M0,20 C720,60 720,0 1440,40 L1440,60 L0,60 Z" fill="#080814" />
+        </svg>
+      </div>
+
+      {/* ── HOW IT WORKS ── */}
+      <section id="how" style={{ background: '#080814', padding: '80px 5vw' }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
-            <h2 style={{ fontSize: 'clamp(28px,4vw,48px)', fontWeight: 800, letterSpacing: -2 }}>
-              Des résultats <span style={{ color: '#1D9E75' }}>concrets</span>
-            </h2>
+            <p style={{ fontSize: 12, fontWeight: 700, color: '#1D9E75', textTransform: 'uppercase', letterSpacing: '.15em', marginBottom: 12 }}>Simple comme bonjour</p>
+            <h2 style={{ fontSize: 'clamp(28px,4vw,48px)', fontWeight: 800, letterSpacing: -2, lineHeight: 1.1 }}>Opérationnel en 3 étapes</h2>
           </div>
-          <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 20 }}>
-            {[['38+', 'Boutiques actives', '#7F77DD'], ['10s', 'Sync automatique', '#1D9E75'], ['5', 'Modèles de factures', '#BA7517'], ['100%', 'Gratuit à l\'essai', '#E24B4A']].map(([v, l, c]) => (
-              <div key={l as string} style={{ textAlign: 'center', background: 'rgba(255,255,255,.03)', borderRadius: 20, padding: '28px 16px', border: '1px solid rgba(255,255,255,.07)' }}>
-                <div style={{ fontSize: 42, fontWeight: 800, color: c as string, letterSpacing: -2, marginBottom: 8 }}>{v}</div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,.4)', lineHeight: 1.4 }}>{l}</div>
+          <div className="steps-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 24 }}>
+            {STEPS.map((s, i) => (
+              <div key={i} style={{ position: 'relative' }}>
+                {i < STEPS.length - 1 && (
+                  <div style={{ position: 'absolute', top: 24, left: '60%', width: '80%', height: 1, background: 'rgba(255,255,255,.08)', zIndex: 0 }} />
+                )}
+                <div style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 20, padding: '28px 20px', position: 'relative', zIndex: 1 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 14, background: 'linear-gradient(135deg,#7F77DD,#534AB7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 18 }}>{s.num}</div>
+                  <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 10, letterSpacing: -.5 }}>{s.titre}</h3>
+                  <p style={{ fontSize: 14, color: 'rgba(255,255,255,.45)', lineHeight: 1.7 }}>{s.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ textAlign: 'center', marginTop: 48 }}>
+            <Link href="/tutoriels" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.7)', padding: '14px 32px', borderRadius: 14, fontSize: 15, fontWeight: 600, textDecoration: 'none' }}>
+              ▶ Voir les tutoriels vidéo
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Courbe */}
+      <div style={{ background: '#080814', lineHeight: 0 }}>
+        <svg viewBox="0 0 1440 60" preserveAspectRatio="none" style={{ width: '100%', height: 60, display: 'block' }}>
+          <path d="M0,0 C360,60 1080,0 1440,50 L1440,60 L0,60 Z" fill="#0C0C20" />
+        </svg>
+      </div>
+
+      {/* ── TÉMOIGNAGES ── */}
+      <section style={{ background: '#0C0C20', padding: '80px 5vw' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: '#BA7517', textTransform: 'uppercase', letterSpacing: '.15em', marginBottom: 12 }}>Ils nous font confiance</p>
+            <h2 style={{ fontSize: 'clamp(24px,3.5vw,44px)', fontWeight: 800, letterSpacing: -1.5 }}>Ce que disent nos utilisateurs</h2>
+          </div>
+          <div className="testi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
+            {TEMOIGNAGES.map((t, i) => (
+              <div key={i} style={{ background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 20, padding: '24px 20px' }}>
+                <div style={{ display: 'flex', gap: 3, marginBottom: 16 }}>
+                  {Array.from({ length: t.note }).map((_, j) => <span key={j} style={{ color: '#BA7517', fontSize: 16 }}>★</span>)}
+                </div>
+                <p style={{ fontSize: 14, color: 'rgba(255,255,255,.65)', lineHeight: 1.7, marginBottom: 20, fontStyle: 'italic' }}>"{t.texte}"</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#7F77DD,#534AB7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>{t.nom.slice(0, 1)}</div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{t.nom}</div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)' }}>{t.boutique}</div>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── COURBE SVG 3 ── */}
-      <div style={{ lineHeight: 0, background: '#080816' }}>
-        <svg viewBox="0 0 1440 80" preserveAspectRatio="none" style={{ width: '100%', height: 80, display: 'block' }}>
-          <path d="M0,20 C360,80 1080,0 1440,50 L1440,80 L0,80 Z" fill="#0A0A1A" />
+      {/* Courbe */}
+      <div style={{ background: '#0C0C20', lineHeight: 0 }}>
+        <svg viewBox="0 0 1440 60" preserveAspectRatio="none" style={{ width: '100%', height: 60, display: 'block' }}>
+          <path d="M0,40 C480,0 960,60 1440,10 L1440,60 L0,60 Z" fill="#08080F" />
         </svg>
       </div>
 
       {/* ── PRICING ── */}
-      <section id="pricing" style={{ background: '#0A0A1A', padding: '80px 5vw 100px' }}>
+      <section id="pricing" style={{ background: '#08080F', padding: '80px 5vw' }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
             <p style={{ fontSize: 12, fontWeight: 700, color: '#7F77DD', textTransform: 'uppercase', letterSpacing: '.15em', marginBottom: 12 }}>Tarifs</p>
-            <h2 style={{ fontSize: 'clamp(28px,4vw,52px)', fontWeight: 800, letterSpacing: -2, marginBottom: 16 }}>Simple et transparent</h2>
-            <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 15 }}>7 jours gratuits · Aucune carte bancaire · Annulation à tout moment</p>
+            <h2 style={{ fontSize: 'clamp(28px,4vw,48px)', fontWeight: 800, letterSpacing: -2, marginBottom: 14 }}>Transparent. Abordable. Sans surprise.</h2>
+            <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 15 }}>7 jours gratuits · Aucune carte bancaire · Annulation immédiate</p>
           </div>
-
           <div className="plans-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20 }}>
-            {PLANS.map(p => (
-              <div key={p.nom} className="plan-card" style={{ background: p.star ? 'rgba(127,119,221,.08)' : 'rgba(255,255,255,.03)', border: `2px solid ${p.star ? '#7F77DD' : 'rgba(255,255,255,.08)'}`, borderRadius: 24, padding: '28px 24px', position: 'relative', overflow: 'hidden' }}>
-                {p.star && <div style={{ position: 'absolute', top: 16, right: 16, background: '#7F77DD', color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20 }}>⭐ POPULAIRE</div>}
-                <div style={{ fontSize: 13, fontWeight: 700, color: p.couleur, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 12 }}>{p.nom}</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 6 }}>
-                  <span style={{ fontSize: 40, fontWeight: 800, color: '#fff', letterSpacing: -2 }}>{p.prix}</span>
-                  <span style={{ fontSize: 13, color: 'rgba(255,255,255,.35)' }}>FCFA/mois</span>
+            {[
+              { nom: 'Basic', prix: '3 000', couleur: '#888', features: ['50 commandes/mois', '5 produits', '1 livreur', 'Rapports basiques', 'Support email'] },
+              { nom: 'Business', prix: '5 000', couleur: '#7F77DD', star: true, features: ['Commandes illimitées', 'Produits illimités', 'Sync Google Sheet auto', 'Factures premium (5 modèles)', 'Notifications temps réel', 'Suivi stock automatique', 'WhatsApp intégré', 'Rapports avancés'] },
+              { nom: 'Elite', prix: '15 000', couleur: '#1D9E75', features: ['Tout Business +', 'Multi-boutiques', 'Analytics avancés', 'Export données', 'Support prioritaire 24/7', 'Formation personnalisée 1-1'] },
+            ].map(p => (
+              <div key={p.nom} className="plan-card" style={{ background: (p as any).star ? 'rgba(127,119,221,.06)' : 'rgba(255,255,255,.03)', border: `2px solid ${(p as any).star ? '#7F77DD' : 'rgba(255,255,255,.07)'}`, borderRadius: 24, padding: '28px 22px', position: 'relative' }}>
+                {(p as any).star && <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: '#7F77DD', color: '#fff', fontSize: 11, fontWeight: 700, padding: '4px 16px', borderRadius: 20, whiteSpace: 'nowrap' }}>⭐ Le plus populaire</div>}
+                <div style={{ fontSize: 12, fontWeight: 700, color: p.couleur, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 14 }}>{p.nom}</div>
+                <div style={{ marginBottom: 8 }}>
+                  <span style={{ fontSize: 42, fontWeight: 800, letterSpacing: -2 }}>{p.prix}</span>
+                  <span style={{ fontSize: 13, color: 'rgba(255,255,255,.3)', marginLeft: 4 }}>FCFA/mois</span>
                 </div>
-                <div style={{ height: 1, background: 'rgba(255,255,255,.08)', margin: '20px 0' }} />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+                <p style={{ fontSize: 12, color: 'rgba(255,255,255,.25)', marginBottom: 22 }}>7 jours gratuits inclus</p>
+                <div style={{ height: 1, background: 'rgba(255,255,255,.07)', marginBottom: 22 }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>
                   {p.features.map(f => (
                     <div key={f} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                      <span style={{ color: p.couleur, flexShrink: 0, fontWeight: 700 }}>✓</span>
+                      <span style={{ color: p.couleur, flexShrink: 0, fontWeight: 800, fontSize: 14 }}>✓</span>
                       <span style={{ fontSize: 13, color: 'rgba(255,255,255,.6)', lineHeight: 1.4 }}>{f}</span>
                     </div>
                   ))}
                 </div>
-                <Link href="/login" className="cta-btn" style={{ display: 'block', textAlign: 'center', background: p.star ? 'linear-gradient(135deg,#7F77DD,#534AB7)' : 'rgba(255,255,255,.06)', color: '#fff', padding: '12px', borderRadius: 14, fontSize: 14, fontWeight: 700, textDecoration: 'none', border: p.star ? 'none' : '1px solid rgba(255,255,255,.1)' }}>
+                <Link href="/login" style={{ display: 'block', textAlign: 'center', background: (p as any).star ? 'linear-gradient(135deg,#7F77DD,#534AB7)' : 'rgba(255,255,255,.06)', color: '#fff', padding: '13px', borderRadius: 14, fontSize: 14, fontWeight: 700, textDecoration: 'none', border: (p as any).star ? 'none' : '1px solid rgba(255,255,255,.1)' }}>
                   Commencer gratuitement
                 </Link>
               </div>
@@ -287,43 +472,48 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── COURBE SVG 4 ── */}
-      <div style={{ lineHeight: 0, background: '#0A0A1A' }}>
-        <svg viewBox="0 0 1440 80" preserveAspectRatio="none" style={{ width: '100%', height: 80, display: 'block' }}>
-          <path d="M0,40 C720,80 720,0 1440,40 L1440,80 L0,80 Z" fill="#06060F" />
+      {/* Courbe */}
+      <div style={{ background: '#08080F', lineHeight: 0 }}>
+        <svg viewBox="0 0 1440 60" preserveAspectRatio="none" style={{ width: '100%', height: 60, display: 'block' }}>
+          <path d="M0,30 C720,60 720,0 1440,30 L1440,60 L0,60 Z" fill="#06060F" />
         </svg>
       </div>
 
       {/* ── CTA FINAL ── */}
       <section style={{ background: '#06060F', padding: '80px 5vw 100px', textAlign: 'center' }}>
-        <div style={{ maxWidth: 600, margin: '0 auto' }}>
+        <div style={{ maxWidth: 640, margin: '0 auto' }}>
           <div style={{ width: 72, height: 72, borderRadius: 20, background: 'linear-gradient(135deg,#7F77DD,#534AB7)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 28px', boxShadow: '0 0 60px rgba(127,119,221,.4)' }}>
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M3 5L12 3L21 5L19 15L12 20L5 15Z" stroke="white" strokeWidth="1.8" strokeLinejoin="round"/><path d="M3 5L21 5" stroke="white" strokeWidth="1.8"/></svg>
           </div>
-          <h2 style={{ fontSize: 'clamp(32px,5vw,56px)', fontWeight: 800, letterSpacing: -2.5, lineHeight: 1.1, marginBottom: 20 }}>
-            Lance-toi aujourd'hui.<br />
-            <span style={{ color: '#7F77DD' }}>C'est gratuit.</span>
+          <h2 style={{ fontSize: 'clamp(30px,5vw,56px)', fontWeight: 800, letterSpacing: -2.5, lineHeight: 1.1, marginBottom: 18 }}>
+            Prêt à arrêter de perdre<br />du temps sur Excel ?
           </h2>
-          <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 16, marginBottom: 40, lineHeight: 1.7 }}>
-            Rejoins les commerçants africains qui gèrent leur business intelligemment avec Dropzi.
+          <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 17, marginBottom: 12, lineHeight: 1.7 }}>
+            Rejoins les commerçants africains qui ont automatisé leur gestion et triplé leur efficacité avec Dropzi.
           </p>
-          <Link href="/login" className="cta-btn glow" style={{ display: 'inline-flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg,#7F77DD,#534AB7)', color: '#fff', padding: '18px 48px', borderRadius: 18, fontSize: 18, fontWeight: 700, textDecoration: 'none', boxShadow: '0 0 48px rgba(127,119,221,.4)' }}>
-            Créer mon compte gratuit <span style={{ fontSize: 22 }}>→</span>
+          <p style={{ color: '#1D9E75', fontWeight: 700, fontSize: 15, marginBottom: 40 }}>
+            ⚡ Connexion Google Sheet en 1 minute · Bénéfice visible immédiatement
+          </p>
+          <Link href="/login" className="cta-main glow" style={{ display: 'inline-flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg,#7F77DD,#534AB7)', color: '#fff', padding: '20px 52px', borderRadius: 20, fontSize: 19, fontWeight: 800, textDecoration: 'none', boxShadow: '0 0 60px rgba(127,119,221,.4)' }}>
+            Créer mon compte gratuit <span style={{ fontSize: 24 }}>→</span>
           </Link>
-          <p style={{ color: 'rgba(255,255,255,.2)', fontSize: 12, marginTop: 20 }}>7 jours gratuits · Aucune carte bancaire</p>
+          <p style={{ color: 'rgba(255,255,255,.2)', fontSize: 13, marginTop: 20 }}>7 jours gratuits · Sans carte bancaire · Annulation en 1 clic</p>
         </div>
       </section>
 
       {/* ── FOOTER ── */}
-      <footer style={{ borderTop: '1px solid rgba(255,255,255,.06)', padding: '28px 5vw', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, background: '#06060F' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg,#7F77DD,#534AB7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <footer style={{ borderTop: '1px solid rgba(255,255,255,.06)', padding: '32px 5vw', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, background: '#06060F' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,#7F77DD,#534AB7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 5L12 3L21 5L19 15L12 20L5 15Z" stroke="white" strokeWidth="2" strokeLinejoin="round"/></svg>
           </div>
-          <span style={{ color: 'rgba(255,255,255,.4)', fontSize: 13 }}>© 2025 Dropzi · Fait avec ❤️ pour l'Afrique 🌍</span>
+          <div>
+            <span style={{ color: 'rgba(255,255,255,.5)', fontSize: 14 }}>© 2025 Dropzi</span>
+            <span style={{ color: 'rgba(255,255,255,.2)', fontSize: 13, marginLeft: 12 }}>Fait avec ❤️ pour l'Afrique 🌍</span>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 24 }}>
-          {[['#features', 'Fonctionnalités'], ['#pricing', 'Tarifs'], ['/tutoriels', 'Tutoriels'], ['/login', 'Connexion']].map(([h, l]) => (
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+          {[['#features','Fonctionnalités'],['#pricing','Tarifs'],['/tutoriels','Tutoriels'],['/login','Connexion']].map(([h,l]) => (
             <Link key={h} href={h} style={{ color: 'rgba(255,255,255,.25)', fontSize: 13, textDecoration: 'none' }}>{l}</Link>
           ))}
         </div>
