@@ -108,6 +108,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         <div className="border-t border-white/10 pt-4 mt-4 space-y-1">
+          {/* Cloche notifications desktop */}
+          <button onClick={() => setShowNotifs(!showNotifs)}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-400 hover:bg-white/8 hover:text-white transition-all"
+            style={{ position: 'relative', border: 'none', cursor: 'pointer', background: showNotifs ? 'rgba(127,119,221,.12)' : 'transparent', color: showNotifs ? '#7F77DD' : undefined }}>
+            <span className="text-base w-5 text-center" style={{ position: 'relative', display: 'inline-block' }}>
+              🔔
+              {notifs.length > 0 && (
+                <span style={{ position: 'absolute', top: -4, right: -4, width: 14, height: 14, background: '#E24B4A', borderRadius: '50%', fontSize: 8, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{notifs.length}</span>
+              )}
+            </span>
+            Notifications
+            {notifs.length > 0 && (
+              <span style={{ marginLeft: 'auto', background: '#E24B4A', color: '#fff', fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 20 }}>{notifs.length}</span>
+            )}
+          </button>
           <Link href="/dashboard/parametres"
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-400 hover:bg-white/8 hover:text-white transition-all">
             <span className="text-base w-5 text-center">⚙️</span> Paramètres
@@ -144,7 +159,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="flex-1 p-4 md:p-6 pb-24 md:pb-6">
           {/* Panneau notifications */}
           {showNotifs && (
-            <div style={{ position: 'fixed', top: 70, right: 16, width: 320, maxHeight: '70vh', overflowY: 'auto', background: '#fff', borderRadius: 16, boxShadow: '0 8px 40px rgba(0,0,0,.15)', border: '1px solid #e8e8f0', zIndex: 200 }}>
+            <div style={{ position: 'fixed', top: 16, right: 16, width: 320, maxHeight: '80vh', overflowY: 'auto', background: '#fff', borderRadius: 16, boxShadow: '0 8px 40px rgba(0,0,0,.2)', border: '1px solid #e8e8f0', zIndex: 300 }}>
               <div style={{ padding: '14px 16px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 700, fontSize: 14 }}>🔔 Notifications ({notifs.length})</span>
                 {notifs.length > 0 && <button onClick={tousLus} style={{ fontSize: 12, color: '#7F77DD', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}>Tout marquer lu</button>}
