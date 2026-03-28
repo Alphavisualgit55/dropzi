@@ -40,39 +40,56 @@ export default function AdminNotificationsPage() {
     if (!form.titre || !form.message) return
     setSaving(true)
 
-    // Sauvegarder dans notifications_admin (historique)
-    await supabase.from('notifications_admin').insert({
-      titre: form.titre, message: form.message,
-      type: form.type, cible: form.cible
-    })
+    try {
+      // 1. Sauvegarder dans notifications_admin (historique)
+      await supabase.from('notifications_admin').insert({
+        titre: form.titre, message: form.message,
+        type: form.type, cible: form.cible
+      })
 
-    // Envoyer aux utilisateurs concernés dans notifications_user
-    let usersToNotify: any[] = []
+      // 2. Envoyer notifications in-app
+      let usersToNotify: any[] = []
+      if (form.cible === 'tous') {
+        usersToNotify = users
+      } else if (form.cible === 'user_specifique' && form.user_id_specifique) {
+        usersToNotify = users.filter((u: any) => u.id === form.user_id_specifique)
+      } else {
+        usersToNotify = users.filter((u: any) => u.plan === form.cible)
+      }
 
-    if (form.cible === 'tous') {
-      usersToNotify = users
-    } else if (form.cible === 'user_specifique' && form.user_id_specifique) {
-      usersToNotify = users.filter(u => u.id === form.user_id_specifique)
-    } else {
-      usersToNotify = users.filter(u => u.plan === form.cible)
+      if (usersToNotify.length > 0) {
+        await supabase.from('notifications_user').insert(
+          usersToNotify.map((u: any) => ({
+            user_id: u.id, titre: form.titre,
+            message: form.message, type: form.type, lu: false,
+          }))
+        )
+      }
+
+      // 3. Envoyer emails via Brevo
+      const emailRes = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titre: form.titre, message: form.message,
+          type: form.type, cible: form.cible,
+          user_id_specifique: form.user_id_specifique,
+        })
+      })
+      const emailData = await emailRes.json()
+
+      setForm({ titre: '', message: '', type: 'info', cible: 'tous', user_id_specifique: '' })
+      load()
+
+      if (emailData.sent !== undefined) {
+        alert(`✅ Notification envoyée !\n📧 ${emailData.sent} email${emailData.sent > 1 ? 's' : ''} envoyé${emailData.sent > 1 ? 's' : ''}${emailData.failed > 0 ? `\n⚠️ ${emailData.failed} échec(s)` : ''}`)
+      } else {
+        alert(`✅ Notification envoyée à ${usersToNotify.length} utilisateur${usersToNotify.length > 1 ? 's' : ''} !`)
+      }
+    } catch (e: any) {
+      alert('Erreur : ' + e.message)
     }
-
-    if (usersToNotify.length > 0) {
-      await supabase.from('notifications_user').insert(
-        usersToNotify.map(u => ({
-          user_id: u.id,
-          titre: form.titre,
-          message: form.message,
-          type: form.type,
-          lu: false,
-        }))
-      )
-    }
-
-    setForm({ titre: '', message: '', type: 'info', cible: 'tous', user_id_specifique: '' })
     setSaving(false)
-    load()
-    alert(`✅ Notification envoyée à ${usersToNotify.length} utilisateur${usersToNotify.length > 1 ? 's' : ''} !`)
   }
 
   async function supprimer(id: string) {
