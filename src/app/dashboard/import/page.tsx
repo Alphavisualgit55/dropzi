@@ -88,7 +88,7 @@ export default function ImportPage() {
           product_price: parseFloat(cols[idx.price]) || 0,
           product_quantity: parseInt(cols[idx.qty]) || 1,
           date_time: cols[idx.date] || '',
-          status: 'pending',
+          status: 'pending' as const,
         }
       }).filter(r => r.full_name || r.phone)
 
