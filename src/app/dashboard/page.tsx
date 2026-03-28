@@ -158,6 +158,12 @@ export default function DashboardPage() {
         )}
       </div>
 
+      {/* Bouton toutes les commandes */}
+      <Link href="/dashboard/commandes" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#fff', border: '1.5px solid #CECBF6', borderRadius: 16, padding: '14px', textDecoration: 'none', color: '#534AB7', fontWeight: 700, fontSize: 14 }}>
+        📦 Voir toutes les commandes
+        <span style={{ background: '#EEEDFE', padding: '2px 10px', borderRadius: 20, fontSize: 12 }}>{stats.nb} aujourd'hui</span>
+      </Link>
+
       {/* Raccourcis rapides */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
         {[
