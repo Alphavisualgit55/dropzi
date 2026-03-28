@@ -179,20 +179,20 @@ export default function LandingPage() {
             {/* Badge */}
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(127,119,221,.1)', border: '1px solid rgba(127,119,221,.25)', borderRadius: 100, padding: '6px 16px', marginBottom: 28 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#1D9E75', display: 'inline-block', animation: 'pulse 2s infinite', flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,.65)', fontWeight: 600 }}>🌍 Le dashboard e-commerce fait pour l'Afrique</span>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,.65)', fontWeight: 600 }}>🌍 L'outil logistique e-commerce N°1 en Afrique</span>
             </div>
 
             <h1 className="hero-title" style={{ fontSize: 'clamp(40px,5vw,72px)', fontWeight: 800, lineHeight: 1.05, letterSpacing: -3, marginBottom: 20 }}>
-              Tes commandes Shopify<br />
-              <span style={{ background: 'linear-gradient(90deg,#7F77DD,#AFA9EC)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>dans Dropzi en 10 secondes.</span><br />
-              <span style={{ fontSize: '75%', color: 'rgba(255,255,255,.9)' }}>Automatiquement.</span>
+              La logistique<br />
+              e-commerce en Afrique<br />
+              <span style={{ background: 'linear-gradient(90deg,#7F77DD,#AFA9EC)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>enfin maîtrisée.</span>
             </h1>
 
-            <p style={{ fontSize: 18, color: 'rgba(255,255,255,.5)', lineHeight: 1.75, maxWidth: 480, marginBottom: 14 }}>
-              Synchronisation Google Sheet automatique, suivi bénéfice en temps réel, stock intelligent, factures premium, notifications instantanées.
+            <p style={{ fontSize: 18, color: 'rgba(255,255,255,.55)', lineHeight: 1.8, maxWidth: 480, marginBottom: 14 }}>
+              Dropzi centralise toute ta chaîne logistique — commandes, stock, livraisons, finances, factures — en un seul tableau de bord conçu pour le commerce africain.
             </p>
             <p style={{ fontSize: 15, color: 'rgba(255,255,255,.3)', marginBottom: 36 }}>
-              Sans Excel. Sans WhatsApp copier-coller. Sans maux de tête.
+              Du vendeur solo au revendeur multi-boutiques. Simple. Puissant. Africain.
             </p>
 
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 48 }}>
@@ -255,10 +255,10 @@ export default function LandingPage() {
       {/* ── PAIN POINTS ── */}
       <section style={{ background: '#0A0A18', padding: '70px 5vw' }}>
         <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center' }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: '#E24B4A', textTransform: 'uppercase', letterSpacing: '.15em', marginBottom: 20 }}>On te comprend</p>
+          <p style={{ fontSize: 13, fontWeight: 700, color: '#E24B4A', textTransform: 'uppercase', letterSpacing: '.15em', marginBottom: 20 }}>La réalité du commerce en Afrique</p>
           <h2 style={{ fontSize: 'clamp(24px,3.5vw,42px)', fontWeight: 800, letterSpacing: -1.5, marginBottom: 40, lineHeight: 1.2 }}>
-            Tu gères une boutique en ligne.<br />
-            <span style={{ color: 'rgba(255,255,255,.4)' }}>Ces problèmes te parlent ?</span>
+            Tu vends. Mais ta logistique<br />
+            <span style={{ color: 'rgba(255,255,255,.4)' }}>te coûte du temps et de l'argent.</span>
           </h2>
           <div className="pain-box" style={{ background: 'rgba(226,75,74,.08)', border: '1px solid rgba(226,75,74,.2)', borderRadius: 20, padding: '28px 32px', fontSize: 18, fontWeight: 600, color: 'rgba(255,255,255,.8)', lineHeight: 1.6, minHeight: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .3s' }}>
             <span style={{ fontSize: 22, marginRight: 12 }}>😩</span> {PAIN_POINTS[activePain]}
@@ -269,8 +269,8 @@ export default function LandingPage() {
             ))}
           </div>
           <div style={{ marginTop: 40, background: 'linear-gradient(135deg,rgba(127,119,221,.1),rgba(29,158,117,.08))', border: '1px solid rgba(127,119,221,.2)', borderRadius: 20, padding: '24px 32px' }}>
-            <p style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 8 }}>Dropzi résout tout ça — en automatique.</p>
-            <p style={{ fontSize: 15, color: 'rgba(255,255,255,.45)' }}>Une seule app. Zéro Excel. Zéro recopie. Zéro stress.</p>
+            <p style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 8 }}>Dropzi prend en charge toute ta logistique.</p>
+            <p style={{ fontSize: 15, color: 'rgba(255,255,255,.45)' }}>Un seul outil. Toute la chaîne. Du stock à la facture.</p>
           </div>
         </div>
       </section>
@@ -311,8 +311,8 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
             <p style={{ fontSize: 12, fontWeight: 700, color: '#7F77DD', textTransform: 'uppercase', letterSpacing: '.15em', marginBottom: 12 }}>Ce que fait Dropzi</p>
-            <h2 style={{ fontSize: 'clamp(28px,4vw,52px)', fontWeight: 800, letterSpacing: -2, lineHeight: 1.1, marginBottom: 16 }}>6 fonctionnalités qui changent tout</h2>
-            <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 16, maxWidth: 520, margin: '0 auto' }}>Chaque fonctionnalité a été pensée pour les réalités du commerce en Afrique.</p>
+            <h2 style={{ fontSize: 'clamp(28px,4vw,52px)', fontWeight: 800, letterSpacing: -2, lineHeight: 1.1, marginBottom: 16 }}>Une logistique complète. Tout automatisé.</h2>
+            <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 16, maxWidth: 520, margin: '0 auto' }}>Dropzi couvre toute ta chaîne logistique — du premier clic client à la livraison et la facturation.</p>
           </div>
 
           {/* Tabs */}
@@ -367,7 +367,7 @@ export default function LandingPage() {
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
             <p style={{ fontSize: 12, fontWeight: 700, color: '#1D9E75', textTransform: 'uppercase', letterSpacing: '.15em', marginBottom: 12 }}>Simple comme bonjour</p>
-            <h2 style={{ fontSize: 'clamp(28px,4vw,48px)', fontWeight: 800, letterSpacing: -2, lineHeight: 1.1 }}>Opérationnel en 3 étapes</h2>
+            <h2 style={{ fontSize: 'clamp(28px,4vw,48px)', fontWeight: 800, letterSpacing: -2, lineHeight: 1.1 }}>Toute ta logistique opérationnelle en 3 étapes</h2>
           </div>
           <div className="steps-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 24 }}>
             {STEPS.map((s, i) => (
@@ -486,10 +486,10 @@ export default function LandingPage() {
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M3 5L12 3L21 5L19 15L12 20L5 15Z" stroke="white" strokeWidth="1.8" strokeLinejoin="round"/><path d="M3 5L21 5" stroke="white" strokeWidth="1.8"/></svg>
           </div>
           <h2 style={{ fontSize: 'clamp(30px,5vw,56px)', fontWeight: 800, letterSpacing: -2.5, lineHeight: 1.1, marginBottom: 18 }}>
-            Prêt à arrêter de perdre<br />du temps sur Excel ?
+            Prends le contrôle<br />de ta logistique.
           </h2>
           <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 17, marginBottom: 12, lineHeight: 1.7 }}>
-            Rejoins les commerçants africains qui ont automatisé leur gestion et triplé leur efficacité avec Dropzi.
+            Dropzi gère tout ce que tu faisais à la main — commandes, stock, livreurs, bénéfices, factures. Tu te concentres sur vendre. Dropzi gère le reste.
           </p>
           <p style={{ color: '#1D9E75', fontWeight: 700, fontSize: 15, marginBottom: 40 }}>
             ⚡ Connexion Google Sheet en 1 minute · Bénéfice visible immédiatement
