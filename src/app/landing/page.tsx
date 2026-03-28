@@ -186,9 +186,9 @@ export default function LandingPage() {
             <Link href="/login" className="btn-main" style={{ background: 'linear-gradient(135deg,#7F77DD,#534AB7)', color: '#fff', padding: '17px 36px', borderRadius: 16, fontSize: 16, fontWeight: 700, textDecoration: 'none', boxShadow: '0 0 48px rgba(127,119,221,.45)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               Essayer gratuitement 7 jours <span style={{ fontSize: 20 }}>→</span>
             </Link>
-            <a href="#features" style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.12)', color: 'rgba(255,255,255,.7)', padding: '17px 36px', borderRadius: 16, fontSize: 16, fontWeight: 500, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <Link href="/tutoriels" style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.12)', color: 'rgba(255,255,255,.7)', padding: '17px 36px', borderRadius: 16, fontSize: 16, fontWeight: 500, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               ▶ Voir comment ça marche
-            </a>
+            </Link>
           </div>
 
           <div className="hero-trust" style={{ display: 'flex', gap: 28, justifyContent: 'center', flexWrap: 'wrap' }}>
