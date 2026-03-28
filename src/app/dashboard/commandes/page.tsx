@@ -65,6 +65,13 @@ export default function CommandesPage() {
     return s + (p ? p.cout_achat * it.quantite : 0)
   }, 0) - coutLivraison
 
+  async function supprimerCommande(id: string) {
+    if (!confirm('Supprimer cette commande définitivement ?')) return
+    await supabase.from('commande_items').delete().eq('commande_id', id)
+    await supabase.from('commandes').delete().eq('id', id)
+    load()
+  }
+
   async function save() {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
@@ -256,13 +263,17 @@ export default function CommandesPage() {
                 </div>
               </div>
               {/* Statuts rapides */}
-              <div className="flex gap-1.5 mt-3 pt-3 border-t border-gray-50 flex-wrap">
+              <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-50 flex-wrap">
                 {STATUTS.map(s => (
                   <button key={s} onClick={() => updateStatut(c.id, s)}
                     className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${c.statut === s ? 'bg-[#7F77DD] text-white border-[#7F77DD]' : 'border-gray-200 text-gray-400 hover:border-[#7F77DD] hover:text-[#7F77DD]'}`}>
                     {STATUT_LABEL[s]}
                   </button>
                 ))}
+                <button onClick={() => supprimerCommande(c.id)}
+                  className="ml-auto text-xs px-2.5 py-1 rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:border-red-400 transition-colors">
+                  🗑️ Supprimer
+                </button>
               </div>
             </div>
           ))}
