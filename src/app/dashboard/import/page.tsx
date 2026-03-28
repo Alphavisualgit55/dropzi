@@ -23,31 +23,97 @@ export default function ImportPage() {
   const [rows, setRows] = useState<SheetRow[]>([])
   const [loading, setLoading] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const [done, setDone] = useState(0)
   const [total, setTotal] = useState(0)
   const [step, setStep] = useState<'url' | 'preview' | 'done'>('url')
   const [produits, setProduits] = useState<any[]>([])
   const [zones, setZones] = useState<any[]>([])
   const [defaultZoneId, setDefaultZoneId] = useState('')
-  const [lastImport, setLastImport] = useState<string | null>(null)
+  const [syncConfig, setSyncConfig] = useState<any>(null)
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [savingSync, setSavingSync] = useState(false)
+  const [syncSaved, setSyncSaved] = useState(false)
+  const [tab, setTab] = useState<'manuel' | 'auto'>('auto')
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
       setUserId(user.id)
-      supabase.from('produits').select('*').eq('user_id', user.id).eq('actif', true)
-        .then(({ data }) => setProduits(data || []))
-      supabase.from('zones').select('*').eq('user_id', user.id)
-        .then(({ data }) => {
-          setZones(data || [])
-          if (data && data.length > 0) setDefaultZoneId(data[0].id)
-        })
-      // Dernière date importée
-      supabase.from('commandes').select('created_at').eq('user_id', user.id)
-        .order('created_at', { ascending: false }).limit(1)
-        .then(({ data }) => { if (data?.[0]) setLastImport(data[0].created_at) })
+      charger(user.id)
     })
   }, [])
+
+  async function charger(uid: string) {
+    const [p, z, sc, n] = await Promise.all([
+      supabase.from('produits').select('*').eq('user_id', uid).eq('actif', true),
+      supabase.from('zones').select('*').eq('user_id', uid),
+      supabase.from('sync_config').select('*').eq('user_id', uid).single(),
+      supabase.from('notifications_user').select('*').eq('user_id', uid).eq('lu', false).order('created_at', { ascending: false }).limit(10),
+    ])
+    setProduits(p.data || [])
+    setZones(z.data || [])
+    if (sc.data) {
+      setSyncConfig(sc.data)
+      setSheetUrl(sc.data.sheet_url || '')
+      setDefaultZoneId(sc.data.zone_id || '')
+    } else if (z.data?.length) {
+      setDefaultZoneId(z.data[0].id)
+    }
+    setNotifications(n.data || [])
+  }
+
+  async function sauvegarderSync() {
+    if (!userId || !sheetUrl) return
+    setSavingSync(true)
+    const payload = {
+      user_id: userId,
+      sheet_url: sheetUrl,
+      zone_id: defaultZoneId || null,
+      actif: true,
+      updated_at: new Date().toISOString(),
+    }
+    if (syncConfig) {
+      await supabase.from('sync_config').update(payload).eq('user_id', userId)
+    } else {
+      await supabase.from('sync_config').insert(payload)
+    }
+    setSavingSync(false)
+    setSyncSaved(true)
+    setTimeout(() => setSyncSaved(false), 3000)
+    charger(userId!)
+  }
+
+  async function desactiverSync() {
+    if (!userId || !syncConfig) return
+    await supabase.from('sync_config').update({ actif: false }).eq('user_id', userId)
+    setSyncConfig((c: any) => ({ ...c, actif: false }))
+  }
+
+  async function syncMaintenant() {
+    if (!userId) return
+    setSyncing(true)
+    try {
+      const res = await fetch('/api/sync-sheet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+      })
+      const data = await res.json()
+      if (data.imported > 0) {
+        alert(`✅ ${data.imported} nouvelle${data.imported > 1 ? 's' : ''} commande${data.imported > 1 ? 's' : ''} importée${data.imported > 1 ? 's' : ''} !`)
+      } else {
+        alert('✅ Aucune nouvelle commande.')
+      }
+      charger(userId!)
+    } catch (e) { alert('Erreur de synchronisation') }
+    setSyncing(false)
+  }
+
+  async function marquerLu(id: string) {
+    await supabase.from('notifications_user').update({ lu: true }).eq('id', id)
+    setNotifications((n: any[]) => n.filter(x => x.id !== id))
+  }
 
   function extractSheetId(url: string): string | null {
     const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)
@@ -56,35 +122,29 @@ export default function ImportPage() {
 
   async function fetchSheet() {
     setLoading(true)
-
-    // Accepter les 2 formats : lien pub CSV direct ou lien edit normal
     let csvUrl = sheetUrl.trim()
     if (!csvUrl.includes('pub?') && !csvUrl.includes('output=csv')) {
       const sheetId = extractSheetId(csvUrl)
-      if (!sheetId) { alert('URL Google Sheet invalide'); setLoading(false); return }
+      if (!sheetId) { alert('URL invalide'); setLoading(false); return }
       csvUrl = `/api/sheets?id=${sheetId}&gid=0`
     }
-
     try {
       const res = await fetch(csvUrl)
-      if (!res.ok) throw new Error('Impossible de lire le fichier. Vérifie que le partage est activé.')
+      if (!res.ok) throw new Error('Impossible de lire le fichier.')
       const text: string = await res.text()
-      const lines = text.split('\n').filter((l: string) => l.trim())
-      const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase())
-
-      // Détecter les colonnes
+      const lines: string[] = text.split('\n').filter((l: string) => l.trim())
+      const headers: string[] = lines[0].split(',').map((h: string) => h.replace(/"/g, '').trim().toLowerCase())
       const idx = {
-        name: headers.findIndex(h => h.includes('full name') || h.includes('name')),
-        phone: headers.findIndex(h => h.includes('phone')),
-        address: headers.findIndex(h => h.includes('address')),
-        product: headers.findIndex(h => h.includes('product name')),
-        price: headers.findIndex(h => h.includes('product price') || h.includes('price')),
-        qty: headers.findIndex(h => h.includes('quantity') || h.includes('qty')),
-        date: headers.findIndex(h => h.includes('date')),
+        name: headers.findIndex((h: string) => h.includes('full name') || h.includes('name')),
+        phone: headers.findIndex((h: string) => h.includes('phone')),
+        address: headers.findIndex((h: string) => h.includes('address')),
+        product: headers.findIndex((h: string) => h.includes('product name')),
+        price: headers.findIndex((h: string) => h.includes('product price') || h.includes('price')),
+        qty: headers.findIndex((h: string) => h.includes('quantity') || h.includes('qty')),
+        date: headers.findIndex((h: string) => h.includes('date')),
       }
-
-      const parsed: SheetRow[] = lines.slice(1).map(line => {
-        const cols = line.split(',').map(c => c.replace(/"/g, '').trim())
+      const parsed: SheetRow[] = lines.slice(1).map((line: string) => {
+        const cols: string[] = line.split(',').map((c: string) => c.replace(/"/g, '').trim())
         return {
           full_name: cols[idx.name] || '',
           phone: cols[idx.phone] || '',
@@ -95,275 +155,229 @@ export default function ImportPage() {
           date_time: cols[idx.date] || '',
           status: 'pending' as const,
         }
-      }).filter(r => r.full_name || r.phone)
-
+      }).filter((r: SheetRow) => r.full_name || r.phone)
       setRows(parsed)
       setStep('preview')
-    } catch (e: any) {
-      alert(e.message || 'Erreur lors de la lecture du fichier')
-    }
+    } catch (e: any) { alert(e.message) }
     setLoading(false)
   }
 
   async function importerTout() {
     if (!userId) return
-    setImporting(true)
-    setTotal(rows.length)
-    setDone(0)
-
+    setImporting(true); setTotal(rows.length); setDone(0)
     const updated = [...rows]
-
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]
       if (row.status === 'imported') { setDone(i + 1); continue }
-
       try {
-        // Créer ou trouver le client
         let clientId: string | null = null
         if (row.phone) {
-          const { data: existing } = await supabase.from('clients')
-            .select('id').eq('user_id', userId).eq('telephone', row.phone).single()
-          if (existing) {
-            clientId = existing.id
-          } else {
-            const { data: newClient } = await supabase.from('clients').insert({
-              user_id: userId,
-              nom: row.full_name,
-              telephone: row.phone,
-              adresse: row.address,
-            }).select().single()
-            clientId = newClient?.id || null
+          const { data: ex } = await supabase.from('clients').select('id').eq('user_id', userId).eq('telephone', row.phone).single()
+          if (ex) { clientId = ex.id } else {
+            const { data: nc } = await supabase.from('clients').insert({ user_id: userId, nom: row.full_name, telephone: row.phone, adresse: row.address }).select().single()
+            clientId = nc?.id || null
           }
         }
-
-        // Trouver le produit correspondant
-        let produitId: string | null = null
-        let coutAchat = 0
-        const produitMatch = produits.find(p =>
-          p.nom.toLowerCase().includes(row.product_name.toLowerCase().slice(0, 6)) ||
-          row.product_name.toLowerCase().includes(p.nom.toLowerCase().slice(0, 6))
-        )
-        if (produitMatch) { produitId = produitMatch.id; coutAchat = produitMatch.cout_achat }
-
-        // Trouver le coût de livraison
-        const zone = zones.find(z => z.id === defaultZoneId)
-        const coutLivraison = zone?.cout_livraison || 0
-
-        // Créer la commande
-        const { data: commande, error: cmdError } = await supabase.from('commandes').insert({
-          user_id: userId,
-          client_id: clientId,
-          zone_id: defaultZoneId || null,
-          statut: 'en_attente',
-          cout_livraison: coutLivraison,
-          notes: `Importé depuis Google Sheet (Easy Sell) — ${row.date_time}`,
+        const match = produits.find((p: any) => p.nom.toLowerCase().includes(row.product_name.toLowerCase().slice(0, 6)) || row.product_name.toLowerCase().includes(p.nom.toLowerCase().slice(0, 6)))
+        const zone = zones.find((z: any) => z.id === defaultZoneId)
+        const { data: commande } = await supabase.from('commandes').insert({
+          user_id: userId, client_id: clientId, zone_id: defaultZoneId || null,
+          statut: 'en_attente', cout_livraison: zone?.cout_livraison || 0,
+          notes: `Import manuel Easy Sell — ${row.date_time}`,
         }).select().single()
-
-        if (cmdError || !commande) throw new Error(cmdError?.message || 'Erreur création commande')
-
-        // Créer l'item
-        await supabase.from('commande_items').insert({
-          commande_id: commande.id,
-          produit_id: produitId,
-          quantite: row.product_quantity,
-          prix_unitaire: row.product_price,
-          cout_unitaire: coutAchat,
-        })
-
-        updated[i] = { ...row, status: 'imported' }
-      } catch (e: any) {
-        updated[i] = { ...row, status: 'error', error: e.message }
-      }
-
-      setRows([...updated])
-      setDone(i + 1)
+        if (commande) {
+          await supabase.from('commande_items').insert({
+            commande_id: commande.id, produit_id: match?.id || null,
+            quantite: row.product_quantity, prix_unitaire: row.product_price,
+            cout_unitaire: match?.cout_achat || 0,
+          })
+          updated[i] = { ...row, status: 'imported' as const }
+        }
+      } catch (e: any) { updated[i] = { ...row, status: 'error' as const, error: e.message } }
+      setRows([...updated]); setDone(i + 1)
       await new Promise(r => setTimeout(r, 150))
     }
-
-    setImporting(false)
-    setStep('done')
+    setImporting(false); setStep('done')
   }
 
-  const nbImported = rows.filter(r => r.status === 'imported').length
-  const nbErrors = rows.filter(r => r.status === 'error').length
+  const nbImported = rows.filter((r: SheetRow) => r.status === 'imported').length
+  const nbErrors = rows.filter((r: SheetRow) => r.status === 'error').length
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
-      <div>
-        <h1 className="text-xl font-medium">Import Google Sheet</h1>
-        <p className="text-sm text-gray-400 mt-1">Importe tes commandes Easy Sell / Shopify automatiquement</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-medium">Sync Google Sheet</h1>
+          <p className="text-sm text-gray-400 mt-1">Easy Sell / Shopify → Dropzi automatiquement</p>
+        </div>
+        {notifications.length > 0 && (
+          <div className="w-8 h-8 bg-[#7F77DD] rounded-full flex items-center justify-center text-white text-xs font-bold cursor-pointer" onClick={() => notifications.forEach(n => marquerLu(n.id))}>
+            {notifications.length}
+          </div>
+        )}
       </div>
 
-      {/* ÉTAPE 1 — URL */}
-      {step === 'url' && (
-        <div className="card space-y-4">
-          <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12, padding: '14px 16px' }}>
-            <p className="text-sm font-medium text-green-800 mb-1">📋 Comment ça marche ?</p>
-            <ol className="text-sm text-green-700 space-y-1 list-decimal list-inside">
-              <li>Ouvre ton Google Sheet Easy Sell</li>
-              <li>Clique <strong>Fichier</strong> → <strong>Partager</strong> → <strong>Publier sur le Web</strong></li>
-              <li>Choisis ta feuille <strong>orders</strong> → format <strong>CSV</strong> → clique <strong>Publier</strong></li>
-              <li>Copie le lien généré et colle-le ci-dessous</li>
-            </ol>
+      {notifications.map((n: any) => (
+        <div key={n.id} style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-green-800">✅ {n.titre}</p>
+            <p className="text-xs text-green-600 mt-0.5">{n.message}</p>
+            <p className="text-xs text-green-500 mt-1">{new Date(n.created_at).toLocaleString('fr-FR')}</p>
+          </div>
+          <button onClick={() => marquerLu(n.id)} className="text-green-400 hover:text-green-600 text-sm">✕</button>
+        </div>
+      ))}
+
+      <div className="flex gap-2">
+        {(['auto', 'manuel'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${tab === t ? 'bg-[#0C0C1E] text-white' : 'bg-white border border-gray-200 text-gray-500'}`}>
+            {t === 'auto' ? '🔄 Sync automatique' : '📥 Import manuel'}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'auto' && (
+        <div className="space-y-4">
+          <div style={{ background: syncConfig?.actif ? 'linear-gradient(135deg,#1D9E75,#059669)' : 'linear-gradient(135deg,#555,#333)', borderRadius: 18, padding: 20, color: '#fff' }}>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,.7)', marginBottom: 4 }}>Synchronisation automatique</p>
+                <p style={{ fontSize: 22, fontWeight: 800 }}>{syncConfig?.actif ? '🟢 Active' : '⭕ Inactive'}</p>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,.15)', borderRadius: 12, padding: '8px 16px', textAlign: 'center' }}>
+                <p style={{ fontSize: 22, fontWeight: 800 }}>1 min</p>
+                <p style={{ fontSize: 10, color: 'rgba(255,255,255,.6)' }}>fréquence</p>
+              </div>
+            </div>
+            {syncConfig && (
+              <div style={{ borderTop: '1px solid rgba(255,255,255,.2)', paddingTop: 10, display: 'flex', gap: 20, fontSize: 12, color: 'rgba(255,255,255,.65)', flexWrap: 'wrap' }}>
+                <span>📦 {syncConfig.nb_importees || 0} commandes importées au total</span>
+                {syncConfig.derniere_sync && <span>🕐 {new Date(syncConfig.derniere_sync).toLocaleString('fr-FR')}</span>}
+              </div>
+            )}
           </div>
 
-          {/* Zone par défaut */}
-          {zones.length > 0 && (
+          <div className="card space-y-4">
+            <h2 className="font-medium text-sm">⚙️ Configuration</h2>
+            <div>
+              <label className="label">URL publication Google Sheet (CSV) *</label>
+              <input className="input text-sm" value={sheetUrl} onChange={e => setSheetUrl(e.target.value)}
+                placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" />
+              <p className="text-xs text-gray-400 mt-1">Google Sheet → Fichier → Partager → Publier sur le Web → CSV → Publier</p>
+            </div>
             <div>
               <label className="label">Zone de livraison par défaut</label>
-              <select className="input" value={defaultZoneId} onChange={e => setDefaultZoneId(e.target.value)}>
+              <select className="input text-sm" value={defaultZoneId} onChange={e => setDefaultZoneId(e.target.value)}>
                 <option value="">Sans zone</option>
-                {zones.map(z => (
-                  <option key={z.id} value={z.id}>{z.nom} — {fmt(z.cout_livraison)} F</option>
-                ))}
+                {zones.map((z: any) => <option key={z.id} value={z.id}>{z.nom} — {fmt(z.cout_livraison)} F</option>)}
               </select>
-              <p className="text-xs text-gray-400 mt-1">Tu pourras modifier la zone commande par commande ensuite</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={sauvegarderSync} disabled={savingSync || !sheetUrl} className="btn-primary text-sm flex-1">
+                {savingSync ? '⏳...' : syncSaved ? '✅ Sauvegardé !' : syncConfig?.actif ? '💾 Mettre à jour' : '🚀 Activer la sync'}
+              </button>
+              {syncConfig?.actif && (
+                <button onClick={desactiverSync} style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', padding: '8px 16px', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                  Désactiver
+                </button>
+              )}
+            </div>
+          </div>
+
+          {syncConfig?.actif && (
+            <div className="card" style={{ background: '#F8F8FC' }}>
+              <p className="text-sm font-medium mb-1">⚡ Synchroniser maintenant</p>
+              <p className="text-xs text-gray-400 mb-3">Force une sync immédiate sans attendre la prochaine minute.</p>
+              <button onClick={syncMaintenant} disabled={syncing} className="btn-primary text-sm w-full">
+                {syncing ? '⏳ Synchronisation...' : '🔄 Sync maintenant'}
+              </button>
             </div>
           )}
 
+          <div className="card" style={{ background: '#EEEDFE' }}>
+            <p className="text-sm font-medium text-[#534AB7] mb-2">📋 Comment ça marche</p>
+            {['Nouvelle commande Shopify → Google Sheet se met à jour', 'Dropzi vérifie le Sheet toutes les minutes', 'Nouvelles lignes détectées → commandes créées automatiquement', 'Tu reçois une notification dans l\'app', 'Zéro action manuelle nécessaire'].map((s, i) => (
+              <div key={i} className="flex gap-2 text-xs text-[#534AB7] mb-1">
+                <span className="font-bold">{i + 1}.</span><span>{s}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'manuel' && step === 'url' && (
+        <div className="card space-y-4">
           <div>
-            <label className="label">Lien Google Sheet *</label>
-            <input className="input" value={sheetUrl}
-              onChange={e => setSheetUrl(e.target.value)}
+            <label className="label">URL publication Google Sheet (CSV) *</label>
+            <input className="input" value={sheetUrl} onChange={e => setSheetUrl(e.target.value)}
               placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" />
           </div>
-
-          {lastImport && (
-            <p className="text-xs text-gray-400">
-              ℹ️ Dernière commande importée le {new Date(lastImport).toLocaleString('fr-FR')}
-            </p>
+          {zones.length > 0 && (
+            <div>
+              <label className="label">Zone par défaut</label>
+              <select className="input" value={defaultZoneId} onChange={e => setDefaultZoneId(e.target.value)}>
+                <option value="">Sans zone</option>
+                {zones.map((z: any) => <option key={z.id} value={z.id}>{z.nom} — {fmt(z.cout_livraison)} F</option>)}
+              </select>
+            </div>
           )}
-
           <button onClick={fetchSheet} disabled={loading || !sheetUrl} className="btn-primary w-full">
-            {loading ? '⏳ Lecture du fichier...' : '📥 Lire le Google Sheet'}
+            {loading ? '⏳ Lecture...' : '📥 Lire le Google Sheet'}
           </button>
         </div>
       )}
 
-      {/* ÉTAPE 2 — PREVIEW */}
-      {step === 'preview' && (
+      {tab === 'manuel' && step === 'preview' && (
         <div className="space-y-4">
-          {/* Résumé */}
           <div style={{ background: 'linear-gradient(135deg,#7F77DD,#534AB7)', borderRadius: 18, padding: 20, color: '#fff' }}>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,.7)', marginBottom: 6 }}>Commandes trouvées</p>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,.7)' }}>Commandes trouvées</p>
             <p style={{ fontSize: 36, fontWeight: 800, letterSpacing: -1 }}>{rows.length}</p>
-            <div style={{ marginTop: 10, display: 'flex', gap: 20, fontSize: 12, color: 'rgba(255,255,255,.6)' }}>
-              <span>📦 {rows.length} à importer</span>
-              {produits.length === 0 && <span style={{ color: '#FAC775' }}>⚠️ Aucun produit trouvé dans Dropzi</span>}
-            </div>
           </div>
-
-          {/* Avertissement produits */}
-          {produits.length === 0 && (
-            <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 12, padding: '12px 16px' }}>
-              <p className="text-sm text-amber-800 font-medium">⚠️ Aucun produit dans Dropzi</p>
-              <p className="text-xs text-amber-700 mt-1">Les commandes seront importées sans produit lié. Tu pourras les modifier ensuite dans Commandes.</p>
-            </div>
-          )}
-
-          {/* Barre de progression import */}
           {importing && (
             <div className="card">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">Import en cours...</span>
-                <span className="text-sm text-gray-500">{done}/{total}</span>
-              </div>
+              <div className="flex justify-between mb-2"><span className="text-sm font-medium">Import en cours...</span><span className="text-sm text-gray-500">{done}/{total}</span></div>
               <div style={{ background: '#f0f0f0', borderRadius: 8, height: 8, overflow: 'hidden' }}>
                 <div style={{ width: `${total > 0 ? (done / total) * 100 : 0}%`, height: '100%', background: 'linear-gradient(90deg,#7F77DD,#534AB7)', borderRadius: 8, transition: 'width .3s ease' }} />
               </div>
-              <p className="text-xs text-gray-400 mt-2">{Math.round(total > 0 ? (done / total) * 100 : 0)}% terminé</p>
             </div>
           )}
-
-          {/* Liste preview */}
-          <div className="space-y-2" style={{ maxHeight: '45vh', overflowY: 'auto' }}>
-            {rows.map((row, i) => (
-              <div key={i} className="card" style={{
-                borderColor: row.status === 'imported' ? '#BBF7D0' : row.status === 'error' ? '#FECACA' : '#e8e8f0',
-                background: row.status === 'imported' ? '#F0FDF4' : row.status === 'error' ? '#FEF2F2' : '#fff'
-              }}>
+          <div className="space-y-2" style={{ maxHeight: '40vh', overflowY: 'auto' }}>
+            {rows.map((row: SheetRow, i: number) => (
+              <div key={i} className="card" style={{ borderColor: row.status === 'imported' ? '#BBF7D0' : row.status === 'error' ? '#FECACA' : '#e8e8f0', background: row.status === 'imported' ? '#F0FDF4' : row.status === 'error' ? '#FEF2F2' : '#fff' }}>
                 <div className="flex items-center gap-3">
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#7F77DD,#534AB7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(135deg,#7F77DD,#534AB7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
                     {(row.full_name || '?').slice(0, 1).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium truncate">{row.full_name || 'Client inconnu'}</p>
-                      {row.status === 'imported' && <span className="text-xs text-green-600 font-medium">✓ Importé</span>}
-                      {row.status === 'error' && <span className="text-xs text-red-500 font-medium">✗ Erreur</span>}
-                    </div>
-                    <p className="text-xs text-gray-400 truncate">
-                      📞 {row.phone} · 📍 {row.address || '—'}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">
-                      📦 {row.product_name} × {row.product_quantity} — {fmt(row.product_price)} F
-                    </p>
-                    {row.error && <p className="text-xs text-red-500 mt-0.5">{row.error}</p>}
+                    <p className="text-sm font-medium truncate">{row.full_name} {row.status === 'imported' && <span className="text-green-600 text-xs">✓</span>}</p>
+                    <p className="text-xs text-gray-400 truncate">📞 {row.phone} · 📦 {row.product_name} × {row.product_quantity}</p>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-medium text-[#7F77DD]">{fmt(row.product_price * row.product_quantity)} F</p>
-                    <p className="text-xs text-gray-400">{row.date_time ? new Date(row.date_time).toLocaleDateString('fr-FR') : '—'}</p>
-                  </div>
+                  <p className="text-sm font-medium text-[#7F77DD] flex-shrink-0">{fmt(row.product_price * row.product_quantity)} F</p>
                 </div>
               </div>
             ))}
           </div>
-
           <div className="flex gap-2">
-            <button onClick={() => { setStep('url'); setRows([]) }} className="btn-secondary text-sm flex-1">
-              ← Retour
-            </button>
-            <button onClick={importerTout} disabled={importing || rows.length === 0} className="btn-primary text-sm flex-1">
-              {importing ? `⏳ Import ${done}/${total}...` : `⚡ Importer ${rows.length} commandes`}
+            <button onClick={() => { setStep('url'); setRows([]) }} className="btn-secondary text-sm flex-1">← Retour</button>
+            <button onClick={importerTout} disabled={importing} className="btn-primary text-sm flex-1">
+              {importing ? `⏳ ${done}/${total}...` : `⚡ Importer ${rows.length} commandes`}
             </button>
           </div>
         </div>
       )}
 
-      {/* ÉTAPE 3 — DONE */}
-      {step === 'done' && (
+      {tab === 'manuel' && step === 'done' && (
         <div className="card text-center py-10 space-y-4">
           <div style={{ fontSize: 56 }}>{nbErrors === 0 ? '🎉' : '⚠️'}</div>
-          <div>
-            <p className="text-xl font-bold text-gray-900">{nbImported} commandes importées</p>
-            {nbErrors > 0 && <p className="text-sm text-red-500 mt-1">{nbErrors} erreurs</p>}
-          </div>
-          <div style={{ background: '#EEEDFE', borderRadius: 14, padding: '14px 20px', display: 'inline-block' }}>
-            <p className="text-sm text-[#534AB7]">
-              Total importé : <strong>{fmt(rows.filter(r => r.status === 'imported').reduce((s, r) => s + r.product_price * r.product_quantity, 0))} FCFA</strong>
-            </p>
-          </div>
+          <p className="text-xl font-bold">{nbImported} commandes importées</p>
+          {nbErrors > 0 && <p className="text-sm text-red-500">{nbErrors} erreurs</p>}
           <div className="flex gap-2 justify-center">
-            <button onClick={() => { setStep('url'); setRows([]) }} className="btn-secondary text-sm">
-              Nouvel import
-            </button>
-            <a href="/dashboard/commandes" className="btn-primary text-sm">
-              Voir les commandes →
-            </a>
+            <button onClick={() => { setStep('url'); setRows([]) }} className="btn-secondary text-sm">Nouvel import</button>
+            <a href="/dashboard/commandes" className="btn-primary text-sm">Voir les commandes →</a>
           </div>
         </div>
       )}
-
-      {/* INFOS */}
-      <div className="card" style={{ background: '#F8F8FC' }}>
-        <p className="text-xs font-medium text-gray-500 mb-2">📋 Colonnes reconnues automatiquement</p>
-        <div className="grid grid-cols-2 gap-1">
-          {[
-            ['Full Name', 'Nom du client'],
-            ['Phone', 'Téléphone'],
-            ['Address 1', 'Adresse livraison'],
-            ['Product Name', 'Nom du produit'],
-            ['Product Price', 'Prix unitaire'],
-            ['Product Quantity', 'Quantité'],
-            ['Date & Time', 'Date de commande'],
-          ].map(([col, desc]) => (
-            <div key={col} className="flex gap-1 text-xs">
-              <span className="text-[#7F77DD] font-medium">{col}</span>
-              <span className="text-gray-400">→ {desc}</span>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   )
 }
