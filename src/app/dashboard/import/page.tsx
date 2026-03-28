@@ -73,15 +73,21 @@ export default function ImportPage() {
       actif: true,
       updated_at: new Date().toISOString(),
     }
+    let error = null
     if (syncConfig) {
-      await supabase.from('sync_config').update(payload).eq('user_id', userId)
+      const res = await supabase.from('sync_config').update(payload).eq('user_id', userId)
+      error = res.error
     } else {
-      await supabase.from('sync_config').insert(payload)
+      const res = await supabase.from('sync_config').insert(payload)
+      error = res.error
     }
+    if (error) { alert('Erreur : ' + error.message); setSavingSync(false); return }
+    // Recharger le syncConfig immédiatement
+    const { data } = await supabase.from('sync_config').select('*').eq('user_id', userId).single()
+    if (data) setSyncConfig(data)
     setSavingSync(false)
     setSyncSaved(true)
     setTimeout(() => setSyncSaved(false), 3000)
-    charger(userId!)
   }
 
   async function desactiverSync() {
