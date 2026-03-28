@@ -60,10 +60,11 @@ export default function ImportPage() {
     if (!sheetId) { alert('URL Google Sheet invalide'); setLoading(false); return }
 
     try {
-      const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`
+      const csvUrl = `/api/sheets?id=${sheetId}&gid=0`
       const res = await fetch(csvUrl)
-      if (!res.ok) throw new Error('Impossible de lire le fichier. Vérifie que le partage est activé.')
-      const text = await res.text()
+      const json = await res.json()
+      if (!res.ok || json.error) throw new Error(json.error || 'Impossible de lire le fichier.')
+      const text = json.csv
       const lines = text.split('\n').filter(l => l.trim())
       const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase())
 
