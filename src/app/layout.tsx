@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import TrackingScript from '@/components/TrackingScript'
 
 export const metadata: Metadata = {
   title: 'Dropzi — Gérez. Livrez. Encaissez.',
@@ -9,7 +10,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr">
-      <body>{children}</body>
+      <body>
+        {children}
+        <TrackingScript />
+      </body>
     </html>
   )
 }
