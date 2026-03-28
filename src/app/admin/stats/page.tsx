@@ -20,10 +20,10 @@ export default function AdminStatsPage() {
     const now = new Date()
     const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0)
     const weekStart = new Date(now); weekStart.setDate(now.getDate() - 7)
-    const liveStart = new Date(now.getTime() - 5 * 60 * 1000)
+    const liveStart = new Date(now.getTime() - 35000)
 
     const [liveRes, todayRes, weekRes, totalRes, pagesRes, refRes, hourRes] = await Promise.all([
-      supabase.from('visites').select('*', { count: 'exact', head: true }).gte('created_at', liveStart.toISOString()),
+      fetch('/api/track/live').then(r => r.json()),
       supabase.from('visites').select('*', { count: 'exact', head: true }).gte('created_at', todayStart.toISOString()),
       supabase.from('visites').select('*', { count: 'exact', head: true }).gte('created_at', weekStart.toISOString()),
       supabase.from('visites').select('*', { count: 'exact', head: true }),
@@ -32,7 +32,7 @@ export default function AdminStatsPage() {
       supabase.from('visites').select('created_at').gte('created_at', todayStart.toISOString()),
     ])
 
-    setLive(liveRes.count || 0)
+    setLive(liveRes.live || 0)
     setToday(todayRes.count || 0)
     setWeek(weekRes.count || 0)
     setTotal(totalRes.count || 0)
@@ -109,7 +109,7 @@ export default function AdminStatsPage() {
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#1D9E75', animation: 'pulse 1.5s infinite' }} />
             <span style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.08em' }}>En ce moment</span>
           </div>
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.25)' }}>Dernières 5 minutes</span>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.25)' }}>Actifs maintenant · se rafraîchit en temps réel</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <span style={{ fontSize: 64, fontWeight: 800, color: '#fff', letterSpacing: -3, lineHeight: 1 }}>{live}</span>
