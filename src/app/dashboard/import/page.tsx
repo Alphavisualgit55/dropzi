@@ -56,16 +56,20 @@ export default function ImportPage() {
 
   async function fetchSheet() {
     setLoading(true)
-    const sheetId = extractSheetId(sheetUrl)
-    if (!sheetId) { alert('URL Google Sheet invalide'); setLoading(false); return }
+
+    // Accepter les 2 formats : lien pub CSV direct ou lien edit normal
+    let csvUrl = sheetUrl.trim()
+    if (!csvUrl.includes('pub?') && !csvUrl.includes('output=csv')) {
+      const sheetId = extractSheetId(csvUrl)
+      if (!sheetId) { alert('URL Google Sheet invalide'); setLoading(false); return }
+      csvUrl = `/api/sheets?id=${sheetId}&gid=0`
+    }
 
     try {
-      const csvUrl = `/api/sheets?id=${sheetId}&gid=0`
       const res = await fetch(csvUrl)
-      const json = await res.json()
-      if (!res.ok || json.error) throw new Error(json.error || 'Impossible de lire le fichier.')
-      const text = json.csv
-      const lines = (text as string).split('\n').filter((l: string) => l.trim())
+      if (!res.ok) throw new Error('Impossible de lire le fichier. Vérifie que le partage est activé.')
+      const text: string = await res.text()
+      const lines = text.split('\n').filter((l: string) => l.trim())
       const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase())
 
       // Détecter les colonnes
@@ -197,9 +201,9 @@ export default function ImportPage() {
             <p className="text-sm font-medium text-green-800 mb-1">📋 Comment ça marche ?</p>
             <ol className="text-sm text-green-700 space-y-1 list-decimal list-inside">
               <li>Ouvre ton Google Sheet Easy Sell</li>
-              <li>Clique <strong>Partager</strong> → <strong>Toute personne ayant le lien</strong> → Lecteur</li>
-              <li>Colle le lien ci-dessous</li>
-              <li>Dropzi importe toutes les commandes automatiquement</li>
+              <li>Clique <strong>Fichier</strong> → <strong>Partager</strong> → <strong>Publier sur le Web</strong></li>
+              <li>Choisis ta feuille <strong>orders</strong> → format <strong>CSV</strong> → clique <strong>Publier</strong></li>
+              <li>Copie le lien généré et colle-le ci-dessous</li>
             </ol>
           </div>
 
@@ -221,7 +225,7 @@ export default function ImportPage() {
             <label className="label">Lien Google Sheet *</label>
             <input className="input" value={sheetUrl}
               onChange={e => setSheetUrl(e.target.value)}
-              placeholder="https://docs.google.com/spreadsheets/d/..." />
+              placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" />
           </div>
 
           {lastImport && (
