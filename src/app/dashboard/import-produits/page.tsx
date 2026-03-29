@@ -89,17 +89,22 @@ export default function ImportProduitsPage() {
       const sku = idx.sku >= 0 ? (cols[idx.sku] || '').trim() : ''
       const stock = idx.stock >= 0 ? parseInt(cols[idx.stock]) || 0 : 0
 
-      if (nom) {
-        result.push({
-          nom,
-          prix_vente: prix,
-          cout_achat: cout,
-          image_url: image,
-          sku,
-          stock,
-          status: existants.includes(nom.toLowerCase()) ? 'exists' : 'pending'
-        })
-      }
+      // Ignorer si le nom contient du HTML ou est trop court
+      const nomClean = nom.replace(/<[^>]*>/g, '').trim()
+      if (!nomClean || nomClean.length < 3) continue
+      if (nomClean.includes('<') || nomClean.includes('>') || nomClean.includes('</')) continue
+      // Ignorer si prix ET cout sont à 0 (probablement une ligne parasite)
+      if (prix === 0 && cout === 0 && !sku) continue
+
+      result.push({
+        nom: nomClean,
+        prix_vente: prix,
+        cout_achat: cout,
+        image_url: image,
+        sku,
+        stock,
+        status: existants.includes(nomClean.toLowerCase()) ? 'exists' : 'pending'
+      })
     }
     return result
   }
