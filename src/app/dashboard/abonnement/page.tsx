@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useSearchParams } from 'next/navigation'
 
@@ -70,7 +70,7 @@ const PLANS = [
   },
 ]
 
-export default function AbonnementPage() {
+function AbonnementContent() {
   const supabase = createClient()
   const searchParams = useSearchParams()
   const [profil, setProfil] = useState<any>(null)
@@ -244,5 +244,14 @@ export default function AbonnementPage() {
         </div>
       </div>
     </div>
+  )
+}  }
+}
+
+export default function AbonnementPage() {
+  return (
+    <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}><div style={{ width: 32, height: 32, border: '3px solid #7F77DD', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .8s linear infinite' }} /><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div>}>
+      <AbonnementContent />
+    </Suspense>
   )
 }
