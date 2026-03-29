@@ -63,7 +63,16 @@ export default function CommandesPage() {
       const { data: nc } = await supabase.from('clients').insert({ user_id: user.id, nom: form.nom || form.telephone, telephone: form.telephone, adresse: form.adresse }).select('id').single()
       cid = nc?.id || null
     }
-    const { data: cmd } = await supabase.from('commandes').insert({ user_id: user.id, client_id: cid, zone_id: form.zone_id || null, livreur_id: form.livreur_id || null, cout_livraison: coutLiv, notes: form.notes }).select('id').single()
+    const { data: cmd, error: cmdError } = await supabase.from('commandes').insert({ user_id: user.id, client_id: cid, zone_id: form.zone_id || null, livreur_id: form.livreur_id || null, cout_livraison: coutLiv, notes: form.notes }).select('id').single()
+    if (cmdError) {
+      if (cmdError.code === '42501' || cmdError.message?.includes('check_plan_limit') || cmdError.message?.includes('new row')) {
+        alert('🚫 Limite de commandes atteinte ! Upgrade ton plan pour continuer.')
+        window.location.href = '/dashboard/abonnement'
+      } else {
+        alert('Erreur : ' + cmdError.message)
+      }
+      return
+    }
     if (cmd) {
       const items = form.items.filter(i => i.produit_id).map(i => { const p = produits.find(p => p.id === i.produit_id)!; return { commande_id: cmd.id, produit_id: i.produit_id, quantite: i.quantite, prix_unitaire: p.prix_vente, cout_unitaire: p.cout_achat } })
       if (items.length) await supabase.from('commande_items').insert(items)
