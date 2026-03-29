@@ -1,101 +1,100 @@
-ng
-Complete
-Building
-Failed
-10:36:54 PM: Netlify Build                                                 
-10:36:54 PM: ────────────────────────────────────────────────────────────────
-10:36:54 PM: ​
-10:36:54 PM: ❯ Version
-10:36:54 PM:   @netlify/build 35.11.2
-10:36:54 PM: ​
-10:36:54 PM: ❯ Flags
-10:36:54 PM:   accountId: 69bea65c6f2ab0c9abde4b6f
-10:36:54 PM:   baseRelDir: true
-10:36:54 PM:   buildId: 69c9a979d380af0008015697
-10:36:54 PM:   deployId: 69c9a979d380af0008015699
-10:36:55 PM: ​
-10:36:55 PM: ❯ Current directory
-10:36:55 PM:   /opt/build/repo
-10:36:55 PM: ​
-10:36:55 PM: ❯ Config file
-10:36:55 PM:   /opt/build/repo/netlify.toml
-10:36:55 PM: ​
-10:36:55 PM: ❯ Context
-10:36:55 PM:   production
-10:36:55 PM: ​
-10:36:55 PM: ❯ Installing extensions
-10:36:55 PM:    - neon
-10:36:56 PM: ​
-10:36:56 PM: ❯ Using Next.js Runtime - v5.15.9
-10:36:56 PM: ​
-10:36:56 PM: ❯ Loading plugins
-10:36:56 PM:    - @netlify/plugin-emails@1.1.1 from Netlify app
-10:36:56 PM: ​
-10:36:56 PM: ❯ Loading extensions
-10:36:56 PM:    - neon
-10:36:59 PM: Next.js cache restored
-10:36:59 PM: ​
-10:36:59 PM: build.command from netlify.toml                               
-10:36:59 PM: ────────────────────────────────────────────────────────────────
-10:36:59 PM: ​
-10:36:59 PM: $ npm run build
-10:36:59 PM: > dropzi@1.0.0 build
-10:36:59 PM: > next build
-10:37:00 PM:   ▲ Next.js 14.2.0
-10:37:00 PM:    Creating an optimized production build ...
-10:37:07 PM:  ✓ Compiled successfully
-10:37:07 PM:    Linting and checking validity of types ...
-10:37:13 PM: Failed to compile.
-10:37:13 PM: 
-10:37:13 PM: ./src/app/dashboard/parametres/page.tsx:65:72
-10:37:13 PM: Type error: Cannot find name 'profil'.
-10:37:13 PM:   63 |         <div className="flex items-center justify-between mb-2">
-10:37:13 PM:   64 |           <span className="text-sm text-gray-600">Plan actuel</span>
-10:37:13 PM: > 65 |           <span className={`text-xs font-bold px-3 py-1 rounded-full ${profil.plan === 'elite' ? 'bg-green-100 text-green-700' : profil.plan === 'business' ? 'bg-[#EEEDFE] text-[#534AB7]' : profil.plan === 'starter' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'}`}>
-10:37:13 PM:      |                                                                        ^
-10:37:13 PM:   66 |               {profil.plan ? profil.plan.toUpperCase() : 'AUCUN'}
-10:37:13 PM:   67 |             </span>
-10:37:13 PM:   68 |         </div>
-10:37:14 PM: Failed during stage 'building site': Build script returned non-zero exit code: 2 (https://ntl.fyi/exit-code-2)
-10:37:14 PM: ​
-10:37:14 PM: "build.command" failed                                        
-10:37:14 PM: ────────────────────────────────────────────────────────────────
-10:37:14 PM: ​
-10:37:14 PM:   Error message
-10:37:14 PM:   Command failed with exit code 1: npm run build (https://ntl.fyi/exit-code-1)
-10:37:14 PM: ​
-10:37:14 PM:   Error location
-10:37:14 PM:   In build.command from netlify.toml:
-10:37:14 PM:   npm run build
-10:37:14 PM: ​
-10:37:14 PM:   Resolved config
-10:37:14 PM:   build:
-10:37:14 PM:     command: npm run build
-10:37:14 PM:     commandOrigin: config
-10:37:14 PM:     environment:
-10:37:14 PM:       - BREVO_API_KEY
-10:37:14 PM:       - BREVO_FROM_EMAIL
-10:37:14 PM:       - CRON_SECRET
-10:37:14 PM:       - NETLIFY_EMAILS_DIRECTORY
-10:37:14 PM:       - NETLIFY_EMAILS_SECRET
-10:37:14 PM:       - NEXT_PUBLIC_SUPABASE_ANON_KEY
-10:37:14 PM:       - NEXT_PUBLIC_SUPABASE_URL
-10:37:14 PM:       - PAYDUNYA_MASTER_KEY
-10:37:14 PM:       - PAYDUNYA_MODE
-10:37:14 PM:       - PAYDUNYA_PRIVATE_KEY
-10:37:14 PM:       - PAYDUNYA_PUBLIC_KEY
-10:37:14 PM:       - PAYDUNYA_TOKEN
-10:37:14 PM:       - SUPABASE_SERVICE_ROLE_KEY
-10:37:14 PM:       - NODE_VERSION
-10:37:14 PM:     publish: /opt/build/repo/.next
-10:37:14 PM:     publishOrigin: config
-10:37:14 PM:   plugins:
-10:37:14 PM:     - inputs: {}
-10:37:14 PM:       origin: ui
-10:37:14 PM:       package: "@netlify/plugin-emails"
-10:37:14 PM:     - inputs: {}
-10:37:14 PM:       origin: config
-10:37:14 PM:       package: "@netlify/plugin-nextjs"
-10:37:14 PM: Build failed due to a user error: Build script returned non-zero exit code: 2
-10:37:14 PM: Failing build: Failed to build site
-10:37:15 PM: Finished processing build request in 32.603s
+'use client'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+
+export default function ParametresPage() {
+  const supabase = createClient()
+  const router = useRouter()
+  const [form, setForm] = useState({ nom_boutique: '', telephone: '' })
+  const [plan, setPlan] = useState('aucun')
+  const [planExpires, setPlanExpires] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [user, setUser] = useState<any>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      setUser(user)
+      supabase.from('profiles').select('*').eq('id', user.id).single()
+        .then(({ data }) => {
+          if (data) {
+            setForm({ nom_boutique: data.nom_boutique || '', telephone: data.telephone || '' })
+            setPlan(data.plan || 'aucun')
+            setPlanExpires(data.plan_expires || '')
+          }
+        })
+    })
+  }, [])
+
+  async function save() {
+    if (!user) return
+    setSaving(true)
+    await supabase.from('profiles').update(form).eq('id', user.id)
+    setSaving(false); setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
+  }
+
+  async function logout() {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
+  const planColor = plan === 'elite'
+    ? 'background:#D1FAE5;color:#065F46'
+    : plan === 'business'
+    ? 'background:#EEEDFE;color:#534AB7'
+    : plan === 'starter'
+    ? 'background:#FEF3C7;color:#92400E'
+    : 'background:#F3F4F6;color:#6B7280'
+
+  return (
+    <div className="max-w-lg mx-auto space-y-4">
+      <h1 className="text-xl font-medium">Paramètres</h1>
+      <div className="card space-y-4">
+        <h2 className="font-medium text-sm">Mon profil</h2>
+        <div>
+          <label className="label">Nom de la boutique</label>
+          <input className="input" value={form.nom_boutique}
+            onChange={e => setForm(f => ({ ...f, nom_boutique: e.target.value }))}
+            placeholder="Ma Boutique" />
+        </div>
+        <div>
+          <label className="label">Téléphone</label>
+          <input className="input" value={form.telephone}
+            onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))}
+            placeholder="77 000 00 00" />
+        </div>
+        <div>
+          <label className="label">Email</label>
+          <div className="input bg-gray-50 text-gray-400">{user?.email}</div>
+        </div>
+        <button onClick={save} disabled={saving} className="btn-primary text-sm w-full">
+          {saving ? 'Enregistrement...' : saved ? '✓ Sauvegardé !' : 'Sauvegarder'}
+        </button>
+      </div>
+      <div className="card">
+        <h2 className="font-medium text-sm mb-3">Mon plan</h2>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-gray-600">Plan actuel</span>
+          <span style={{ ...Object.fromEntries(planColor.split(';').map(s => { const [k,v] = s.split(':'); return [k?.trim(), v?.trim()] })), fontSize: 12, fontWeight: 700, padding: '3px 12px', borderRadius: 20 }}>
+            {plan.toUpperCase()}
+          </span>
+        </div>
+        {planExpires && (
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-sm text-gray-600">Expire le</span>
+            <span className="text-xs text-gray-500">{new Date(planExpires).toLocaleDateString('fr-FR')}</span>
+          </div>
+        )}
+        <a href="/dashboard/abonnement" className="block mt-3 text-center text-xs font-semibold" style={{ color: '#7F77DD' }}>
+          Gérer mon abonnement →
+        </a>
+      </div>
+      <button onClick={logout} className="w-full btn-secondary text-sm">
+        🚪 Déconnexion
+      </button>
+    </div>
+  )
+}
