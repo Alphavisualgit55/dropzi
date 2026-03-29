@@ -7,66 +7,19 @@ const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(n)
 
 const PLANS = [
   {
-    id: 'starter',
-    nom: 'Starter',
-    prix: 3000,
-    couleur: '#888',
-    bg: 'rgba(136,136,136,.08)',
-    border: 'rgba(136,136,136,.2)',
-    features: [
-      '50 commandes / mois',
-      '5 produits maximum',
-      '1 zone de livraison',
-      '1 livreur',
-      '1 modèle de facture',
-      'Sync Google Sheet (1h)',
-      'Notifications in-app',
-    ],
-    limits: { commandes: 50, produits: 5 }
+    id: 'starter', nom: 'Starter', prix: 3000,
+    couleur: '#888', bg: 'rgba(136,136,136,.08)', border: 'rgba(136,136,136,.2)',
+    features: ['50 commandes / mois','5 produits maximum','1 zone de livraison','1 livreur','1 modèle de facture','Sync Google Sheet (1h)','Notifications in-app'],
   },
   {
-    id: 'business',
-    nom: 'Business',
-    prix: 5000,
-    couleur: '#7F77DD',
-    bg: 'rgba(127,119,221,.08)',
-    border: 'rgba(127,119,221,.3)',
-    star: true,
-    features: [
-      '500 commandes / mois',
-      '25 produits maximum',
-      '5 zones de livraison',
-      '6 livreurs',
-      '3 modèles de factures',
-      'Sync Google Sheet (1 min)',
-      'Import produits Shopify',
-      'Notifications temps réel',
-      'Suivi stock automatique',
-      'Photo produit',
-    ],
-    limits: { commandes: 500, produits: 25 }
+    id: 'business', nom: 'Business', prix: 5000, star: true,
+    couleur: '#7F77DD', bg: 'rgba(127,119,221,.08)', border: 'rgba(127,119,221,.3)',
+    features: ['500 commandes / mois','25 produits maximum','5 zones de livraison','6 livreurs','3 modèles de factures','Sync Google Sheet (1 min)','Import produits Shopify','Notifications temps réel','Suivi stock automatique','Photo produit'],
   },
   {
-    id: 'elite',
-    nom: 'Elite',
-    prix: 15000,
-    couleur: '#1D9E75',
-    bg: 'rgba(29,158,117,.08)',
-    border: 'rgba(29,158,117,.3)',
-    features: [
-      'Commandes illimitées',
-      'Produits illimités',
-      'Zones illimitées',
-      'Livreurs illimités',
-      '5 modèles de factures premium',
-      'Sync Google Sheet (1 min)',
-      'Import produits Shopify',
-      'Analytics avancés',
-      'Export données',
-      'Support prioritaire',
-      'Nouvelles fonctionnalités en avant-première',
-    ],
-    limits: { commandes: 999999, produits: 999999 }
+    id: 'elite', nom: 'Elite', prix: 15000,
+    couleur: '#1D9E75', bg: 'rgba(29,158,117,.08)', border: 'rgba(29,158,117,.3)',
+    features: ['Commandes illimitées','Produits illimités','Zones illimitées','Livreurs illimités','5 modèles de factures premium','Sync Google Sheet (1 min)','Import produits Shopify','Analytics avancés','Export données','Support prioritaire','Nouvelles fonctionnalités en avant-première'],
   },
 ]
 
@@ -102,12 +55,7 @@ function AbonnementContent() {
       const res = await fetch('/api/paydunya', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          plan: planId,
-          user_id: userId,
-          email: profil.email,
-          nom: profil.nom_boutique || 'Client Dropzi',
-        })
+        body: JSON.stringify({ plan: planId, user_id: userId, email: profil.email, nom: profil.nom_boutique || 'Client Dropzi' })
       })
       const data = await res.json()
       if (data.checkout_url) {
@@ -127,18 +75,17 @@ function AbonnementContent() {
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}>
-      <div style={{ width: 32, height: 32, border: '3px solid #7F77DD', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .8s linear infinite' }} />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ width: 32, height: 32, border: '3px solid #7F77DD', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .8s linear infinite' }} />
     </div>
   )
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', paddingBottom: 48 }}>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}.plan-card{transition:transform .2s,box-shadow .2s;}.plan-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.1)!important;}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}.plan-card{transition:transform .2s,box-shadow .2s;}.plan-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.1)!important;}`}</style>
 
-      {/* Notification succès */}
       {status === 'success' && (
-        <div style={{ background: '#E1F5EE', border: '1px solid #1D9E75', borderRadius: 16, padding: '16px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12, animation: 'fadeUp .4s ease' }}>
+        <div style={{ background: '#E1F5EE', border: '1px solid #1D9E75', borderRadius: 16, padding: '16px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: 28 }}>🎉</span>
           <div>
             <p style={{ fontWeight: 800, color: '#085041', fontSize: 15 }}>Paiement réussi ! Ton plan {planParam} est activé.</p>
@@ -154,16 +101,9 @@ function AbonnementContent() {
         </div>
       )}
 
-      {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
-        <h1 style={{ fontSize: 32, fontWeight: 800, color: '#0C0C1E', letterSpacing: -1.5, marginBottom: 10 }}>
-          Choisir ton plan Dropzi
-        </h1>
-        <p style={{ fontSize: 15, color: '#ABABAB', marginBottom: 16 }}>
-          Paiement sécurisé via PayDunya · Wave, Orange Money, carte bancaire
-        </p>
-
-        {/* Plan actuel */}
+        <h1 style={{ fontSize: 32, fontWeight: 800, color: '#0C0C1E', letterSpacing: -1.5, marginBottom: 10 }}>Choisir ton plan Dropzi</h1>
+        <p style={{ fontSize: 15, color: '#ABABAB', marginBottom: 16 }}>Paiement sécurisé via PayDunya · Wave, Orange Money, carte bancaire</p>
         {planActif && (
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#E1F5EE', border: '1px solid #1D9E75', borderRadius: 20, padding: '6px 16px' }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1D9E75' }} />
@@ -172,21 +112,15 @@ function AbonnementContent() {
             </span>
           </div>
         )}
-        {!planActif && planActuel !== 'gratuit' && (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#FAEEDA', border: '1px solid #BA7517', borderRadius: 20, padding: '6px 16px' }}>
-            <span style={{ fontSize: 13, color: '#633806', fontWeight: 700 }}>⚠️ Abonnement expiré — renouvelle pour continuer</span>
-          </div>
-        )}
       </div>
 
-      {/* Plans */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 20, marginBottom: 32 }}>
         {PLANS.map(plan => {
           const isCurrent = planActuel === plan.id && planActif
           const isPaying = paying === plan.id
           return (
-            <div key={plan.id} className="plan-card" style={{ background: '#fff', border: `2px solid ${isCurrent ? plan.couleur : plan.id === 'business' ? plan.border : '#EBEBEB'}`, borderRadius: 24, padding: '28px 22px', position: 'relative', boxShadow: isCurrent ? `0 0 0 3px ${plan.couleur}22` : 'none' }}>
-              {plan.star && !isCurrent && (
+            <div key={plan.id} className="plan-card" style={{ background: '#fff', border: `2px solid ${isCurrent ? plan.couleur : (plan as any).star ? plan.border : '#EBEBEB'}`, borderRadius: 24, padding: '28px 22px', position: 'relative', boxShadow: isCurrent ? `0 0 0 3px ${plan.couleur}22` : 'none' }}>
+              {(plan as any).star && !isCurrent && (
                 <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: '#7F77DD', color: '#fff', fontSize: 11, fontWeight: 700, padding: '4px 16px', borderRadius: 20, whiteSpace: 'nowrap' }}>
                   ⭐ Le plus populaire
                 </div>
@@ -196,17 +130,13 @@ function AbonnementContent() {
                   ✓ Plan actuel
                 </div>
               )}
-
               <div style={{ fontSize: 12, fontWeight: 700, color: plan.couleur, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 12 }}>{plan.nom}</div>
-
               <div style={{ marginBottom: 6 }}>
                 <span style={{ fontSize: 44, fontWeight: 800, color: '#0C0C1E', letterSpacing: -2 }}>{fmt(plan.prix)}</span>
                 <span style={{ fontSize: 14, color: '#ABABAB', marginLeft: 4 }}>FCFA/mois</span>
               </div>
-              <p style={{ fontSize: 12, color: '#C0C0C0', marginBottom: 20 }}>Renouvellement mensuel automatique</p>
-
+              <p style={{ fontSize: 12, color: '#C0C0C0', marginBottom: 20 }}>Renouvellement mensuel</p>
               <div style={{ height: 1, background: '#F0F0F0', marginBottom: 20 }} />
-
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
                 {plan.features.map(f => (
                   <div key={f} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -215,9 +145,8 @@ function AbonnementContent() {
                   </div>
                 ))}
               </div>
-
               <button onClick={() => !isCurrent && souscrire(plan.id)} disabled={isCurrent || isPaying}
-                style={{ width: '100%', background: isCurrent ? '#F0F0F0' : plan.id === 'business' ? 'linear-gradient(135deg,#7F77DD,#534AB7)' : plan.bg, color: isCurrent ? '#ABABAB' : plan.id === 'business' ? '#fff' : plan.couleur, border: `1.5px solid ${isCurrent ? '#E0E0E0' : plan.border}`, borderRadius: 14, padding: '13px', fontSize: 15, fontWeight: 700, cursor: isCurrent ? 'default' : 'pointer', fontFamily: 'inherit', transition: 'all .2s' }}>
+                style={{ width: '100%', background: isCurrent ? '#F0F0F0' : plan.id === 'business' ? 'linear-gradient(135deg,#7F77DD,#534AB7)' : plan.bg, color: isCurrent ? '#ABABAB' : plan.id === 'business' ? '#fff' : plan.couleur, border: `1.5px solid ${isCurrent ? '#E0E0E0' : plan.border}`, borderRadius: 14, padding: '13px', fontSize: 15, fontWeight: 700, cursor: isCurrent ? 'default' : 'pointer', fontFamily: 'inherit' }}>
                 {isPaying ? (
                   <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                     <span style={{ width: 16, height: 16, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin .6s linear infinite' }} />
@@ -230,12 +159,11 @@ function AbonnementContent() {
         })}
       </div>
 
-      {/* Info paiement */}
-      <div style={{ marginTop: 32, background: '#F8F8FC', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+      <div style={{ background: '#F8F8FC', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 28 }}>🔒</span>
         <div>
           <p style={{ fontSize: 14, fontWeight: 700, color: '#0C0C1E' }}>Paiement 100% sécurisé via PayDunya</p>
-          <p style={{ fontSize: 12, color: '#ABABAB', marginTop: 3 }}>Wave · Orange Money · Free Money · Carte bancaire · Et plus</p>
+          <p style={{ fontSize: 12, color: '#ABABAB', marginTop: 3 }}>Wave · Orange Money · Free Money · Carte bancaire</p>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {['Wave', 'Orange Money', 'Free Money'].map(m => (
@@ -245,12 +173,16 @@ function AbonnementContent() {
       </div>
     </div>
   )
-}  }
 }
 
 export default function AbonnementPage() {
   return (
-    <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}><div style={{ width: 32, height: 32, border: '3px solid #7F77DD', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .8s linear infinite' }} /><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div>}>
+    <Suspense fallback={
+      <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        <div style={{ width: 32, height: 32, border: '3px solid #7F77DD', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .8s linear infinite' }} />
+      </div>
+    }>
       <AbonnementContent />
     </Suspense>
   )
