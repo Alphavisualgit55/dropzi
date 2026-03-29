@@ -29,7 +29,7 @@ export default function CommandesPage() {
 
   const load = useCallback(async () => {
     const [c, z, l, p] = await Promise.all([
-      supabase.from('commandes_detail').select('*').order('created_at', { ascending: false }),
+      supabase.from('commandes_detail').select('*, commande_items(quantite, prix_unitaire, produits(nom, image_url))').order('created_at', { ascending: false }),
       supabase.from('zones').select('*').order('nom'),
       supabase.from('livreurs').select('*').eq('actif', true).order('nom'),
       supabase.from('produits').select('*').eq('actif', true).order('nom'),
