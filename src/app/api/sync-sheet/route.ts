@@ -8,7 +8,13 @@ const supabase = createClient(
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const { searchParams } = new URL(request.url)
+  const secretParam = searchParams.get('secret')
+  const cronSecret = process.env.CRON_SECRET || 'dropzi2025syncKey!'
+
+  // Accepter via header OU via paramètre URL
+  const isAuthorized = authHeader === `Bearer ${cronSecret}` || secretParam === cronSecret
+  if (!isAuthorized) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
   }
 
