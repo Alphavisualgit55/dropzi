@@ -24,6 +24,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifs, setNotifs] = useState<any[]>([])
   const [showNotifs, setShowNotifs] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [toasts, setToasts] = useState<any[]>([])
+  const prevCount = useState<number>(0)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -36,7 +38,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       // Realtime notifications
       const ch = supabase.channel('notifs-' + user.id)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications_user', filter: `user_id=eq.${user.id}` },
-          () => loadNotifs(user.id))
+          (payload: any) => {
+            loadNotifs(user.id)
+            // Afficher popup toast
+            const n = payload.new
+            if (n) {
+              const toast = { id: Date.now(), titre: n.titre, message: n.message, type: n.type || 'info' }
+              setToasts(t => [...t, toast])
+              setTimeout(() => setToasts(t => t.filter(x => x.id !== toast.id)), 5000)
+            }
+          })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'commandes' },
+          () => {
+            const toast = { id: Date.now(), titre: '📦 Nouvelle commande !', message: 'Une nouvelle commande vient d'arriver.', type: 'success' }
+            setToasts(t => [...t, toast])
+            setTimeout(() => setToasts(t => t.filter(x => x.id !== toast.id)), 5000)
+          })
         .subscribe()
       return () => { supabase.removeChannel(ch) }
     })
@@ -175,6 +192,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <p style={{ fontSize: 10, color: '#bbb', margin: 0 }}>{new Date(n.created_at).toLocaleString('fr-FR')}</p>
                   </div>
                   <button onClick={() => marquerLu(n.id)} style={{ background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', fontSize: 14, flexShrink: 0, padding: 2 }}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* TOASTS POPUP */}
+          {toasts.length > 0 && (
+            <div style={{ position: 'fixed', top: 80, right: 16, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 340 }}>
+              <style>{`@keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}@keyframes slideOut{from{transform:translateX(0);opacity:1}to{transform:translateX(120%);opacity:0}}`}</style>
+              {toasts.map(t => (
+                <div key={t.id} style={{ background: '#0C0C1E', border: `1px solid ${t.type === 'success' ? 'rgba(29,158,117,.4)' : t.type === 'error' ? 'rgba(226,75,74,.4)' : 'rgba(127,119,221,.4)'}`, borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12, boxShadow: '0 8px 32px rgba(0,0,0,.4)', animation: 'slideIn .3s ease' }}>
+                  <span style={{ fontSize: 22, flexShrink: 0 }}>{t.type === 'success' ? '✅' : t.type === 'error' ? '❌' : t.type === 'warning' ? '⚠️' : '🔔'}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: '#fff', margin: 0, marginBottom: 3 }}>{t.titre}</p>
+                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', margin: 0, lineHeight: 1.5 }}>{t.message}</p>
+                  </div>
+                  <button onClick={() => setToasts(ts => ts.filter(x => x.id !== t.id))} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.3)', cursor: 'pointer', fontSize: 16, flexShrink: 0, padding: 0 }}>✕</button>
                 </div>
               ))}
             </div>
