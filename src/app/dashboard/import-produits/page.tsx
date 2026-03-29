@@ -77,7 +77,10 @@ export default function ImportProduitsPage() {
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCSVLine(lines[i])
       const nom = idx.nom >= 0 ? (cols[idx.nom] || '').trim() : ''
+      // Ignorer lignes vides (variantes Shopify) et doublons
       if (!nom || seen.has(nom.toLowerCase())) continue
+      // Ignorer produits inactifs si colonne Status présente
+      if (idx.status >= 0 && cols[idx.status] && cols[idx.status].toLowerCase() !== 'active') continue
       seen.add(nom.toLowerCase())
 
       const prix = idx.prix >= 0 ? parseFloat(cols[idx.prix]) || 0 : 0
