@@ -62,7 +62,17 @@ export default function ProduitsPage() {
     if (editId) {
       await supabase.from('produits').update(payload).eq('id', editId).eq('user_id', userId)
     } else {
-      await supabase.from('produits').insert(payload)
+      const { error: prodError } = await supabase.from('produits').insert(payload)
+    if (prodError) {
+      if (prodError.code === '42501' || prodError.message?.includes('check_plan_limit') || prodError.message?.includes('new row')) {
+        alert('🚫 Limite de produits atteinte ! Upgrade ton plan pour ajouter plus de produits.')
+        window.location.href = '/dashboard/abonnement'
+        return
+      } else {
+        alert('Erreur : ' + prodError.message)
+        return
+      }
+    }
     }
     setForm({ nom: '', prix_vente: '', cout_achat: '', stock_total: '', image_url: '' })
     setShowForm(false)
