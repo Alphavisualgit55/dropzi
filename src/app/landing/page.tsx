@@ -42,7 +42,7 @@ export default function LandingPage() {
   const [c3, setC3] = useState(0)
   const statsRef = useRef<HTMLDivElement>(null)
   const animated = useRef(false)
-  const [visible, setVisible] = useState<Set<string>>(new Set())
+  const [visible, setVisible] = useState<Record<string,boolean>>({})
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40)
@@ -59,7 +59,7 @@ export default function LandingPage() {
     const obs = new IntersectionObserver(entries => {
       entries.forEach(e => {
         if (e.isIntersecting) {
-          setVisible(v => new Set([...v, e.target.id]))
+          setVisible(v => ({ ...v, [e.target.id]: true }))
         }
       })
     }, { threshold: .15 })
@@ -85,7 +85,7 @@ export default function LandingPage() {
     return () => obs.disconnect()
   }, [])
 
-  const isVis = (id: string) => visible.has(id)
+  const isVis = (id: string) => !!visible[id]
 
   return (
     <div style={{ background: '#06060F', color: '#fff', fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif', overflowX: 'hidden' }}>
