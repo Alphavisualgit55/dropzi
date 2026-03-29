@@ -36,37 +36,57 @@ export default function ImportProduitsPage() {
   }, [])
 
   function parseShopifyCSV(text: string): ProduitImport[] {
+    // Parser CSV robuste qui gère les guillemets et virgules dans les valeurs
+    function parseCSVLine(line: string): string[] {
+      const result: string[] = []
+      let current = ''
+      let inQuotes = false
+      for (let i = 0; i < line.length; i++) {
+        if (line[i] === '"') {
+          if (inQuotes && line[i+1] === '"') { current += '"'; i++ }
+          else inQuotes = !inQuotes
+        } else if (line[i] === ',' && !inQuotes) {
+          result.push(current.trim()); current = ''
+        } else {
+          current += line[i]
+        }
+      }
+      result.push(current.trim())
+      return result
+    }
+
     const lines = text.split('\n').filter(l => l.trim())
     if (lines.length < 2) return []
 
-    const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase())
+    const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim())
 
+    // Colonnes Shopify exactes
     const idx = {
-      nom: headers.findIndex(h => h.includes('title') || h.includes('name') || h === 'nom'),
-      prix: headers.findIndex(h => h.includes('price') || h.includes('prix')),
-      cout: headers.findIndex(h => h.includes('cost') || h.includes('cout') || h.includes('compare')),
-      image: headers.findIndex(h => h.includes('image') || h.includes('img')),
-      sku: headers.findIndex(h => h === 'sku' || h.includes('variant sku')),
-      stock: headers.findIndex(h => h.includes('inventory') || h.includes('stock') || h.includes('qty')),
+      nom:   headers.findIndex(h => h === 'title' || h === 'nom' || h === 'product name' || h === 'name'),
+      prix:  headers.findIndex(h => h === 'variant price' || h === 'price' || h === 'prix'),
+      cout:  headers.findIndex(h => h === 'cost per item' || h === 'cost' || h === 'cout' || h === 'cost per unit'),
+      image: headers.findIndex(h => h === 'image src' || h === 'image' || h === 'img src' || h === 'image url'),
+      sku:   headers.findIndex(h => h === 'variant sku' || h === 'sku'),
+      stock: headers.findIndex(h => h.includes('inventory qty') || h.includes('stock')),
+      status:headers.findIndex(h => h === 'status'),
     }
 
     const seen = new Set<string>()
     const result: ProduitImport[] = []
 
     for (let i = 1; i < lines.length; i++) {
-      // Parser CSV avec gestion des virgules dans les guillemets
-      const cols = lines[i].match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g)?.map(c => c.replace(/"/g, '').trim()) || []
-      const nom = cols[idx.nom] || ''
-      if (!nom || seen.has(nom)) continue
-      seen.add(nom)
+      const cols = parseCSVLine(lines[i])
+      const nom = idx.nom >= 0 ? (cols[idx.nom] || '').trim() : ''
+      if (!nom || seen.has(nom.toLowerCase())) continue
+      seen.add(nom.toLowerCase())
 
-      const prix = parseFloat(cols[idx.prix]) || 0
-      const cout = parseFloat(cols[idx.cout]) || 0
-      const image = cols[idx.image] || ''
-      const sku = cols[idx.sku] || ''
-      const stock = parseInt(cols[idx.stock]) || 0
+      const prix = idx.prix >= 0 ? parseFloat(cols[idx.prix]) || 0 : 0
+      const cout = idx.cout >= 0 ? parseFloat(cols[idx.cout]) || 0 : 0
+      const image = idx.image >= 0 ? (cols[idx.image] || '').trim() : ''
+      const sku = idx.sku >= 0 ? (cols[idx.sku] || '').trim() : ''
+      const stock = idx.stock >= 0 ? parseInt(cols[idx.stock]) || 0 : 0
 
-      if (nom && (prix > 0 || cout > 0)) {
+      if (nom) {
         result.push({
           nom,
           prix_vente: prix,
