@@ -12,7 +12,8 @@ export default function ProduitsPage() {
   const [saving, setSaving] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
-  const [form, setForm] = useState({ nom: '', prix_vente: '', cout_achat: '', stock_total: '' })
+  const [form, setForm] = useState({ nom: '', prix_vente: '', cout_achat: '', stock_total: '', image_url: '' })
+  const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -33,6 +34,19 @@ export default function ProduitsPage() {
     setLoading(false)
   }
 
+  async function uploadImage(file: File) {
+    if (!userId) return
+    setUploading(true)
+    const ext = file.name.split('.').pop()
+    const path = `produits/${userId}/${Date.now()}.${ext}`
+    const { data, error } = await supabase.storage.from('images').upload(path, file, { upsert: true })
+    if (!error && data) {
+      const { data: urlData } = supabase.storage.from('images').getPublicUrl(path)
+      setForm(f => ({ ...f, image_url: urlData.publicUrl }))
+    }
+    setUploading(false)
+  }
+
   async function sauvegarder() {
     if (!userId || !form.nom || !form.prix_vente) return
     setSaving(true)
@@ -42,6 +56,7 @@ export default function ProduitsPage() {
       prix_vente: +form.prix_vente,
       cout_achat: +(form.cout_achat || 0),
       stock_total: +(form.stock_total || 0),
+      image_url: form.image_url || null,
       actif: true,
     }
     if (editId) {
@@ -49,7 +64,7 @@ export default function ProduitsPage() {
     } else {
       await supabase.from('produits').insert(payload)
     }
-    setForm({ nom: '', prix_vente: '', cout_achat: '', stock_total: '' })
+    setForm({ nom: '', prix_vente: '', cout_achat: '', stock_total: '', image_url: '' })
     setShowForm(false)
     setEditId(null)
     setSaving(false)
@@ -63,13 +78,13 @@ export default function ProduitsPage() {
   }
 
   function editer(p: any) {
-    setForm({ nom: p.nom, prix_vente: String(p.prix_vente), cout_achat: String(p.cout_achat), stock_total: String(p.stock_total) })
+    setForm({ nom: p.nom, prix_vente: String(p.prix_vente), cout_achat: String(p.cout_achat), stock_total: String(p.stock_total), image_url: p.image_url || '' })
     setEditId(p.id)
     setShowForm(true)
   }
 
   function annuler() {
-    setForm({ nom: '', prix_vente: '', cout_achat: '', stock_total: '' })
+    setForm({ nom: '', prix_vente: '', cout_achat: '', stock_total: '', image_url: '' })
     setEditId(null)
     setShowForm(false)
   }
@@ -92,6 +107,23 @@ export default function ProduitsPage() {
       {showForm && (
         <div className="card border-2 border-[#7F77DD] space-y-3">
           <h2 className="font-medium text-sm">{editId ? 'Modifier le produit' : 'Nouveau produit'}</h2>
+          {/* Photo produit */}
+          <div>
+            <label className="label">Photo du produit</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 72, height: 72, borderRadius: 16, background: '#F0F0F8', border: '2px dashed #CECBF6', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                {form.image_url ? <img src={form.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <span style={{ fontSize: 28 }}>📷</span>}
+              </div>
+              <div style={{ flex: 1 }}>
+                <input type="file" accept="image/*" onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0]) }} style={{ display: 'none' }} id="img-upload" />
+                <label htmlFor="img-upload" style={{ display: 'inline-block', background: uploading ? '#ccc' : '#EEEDFE', color: '#534AB7', borderRadius: 10, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                  {uploading ? '⏳ Upload...' : '📷 Choisir une photo'}
+                </label>
+                {form.image_url && <button onClick={() => setForm(f => ({ ...f, image_url: '' }))} style={{ display: 'block', color: '#E24B4A', background: 'none', border: 'none', fontSize: 12, cursor: 'pointer', marginTop: 6 }}>Supprimer la photo</button>}
+              </div>
+            </div>
+          </div>
+
           <div>
             <label className="label">Nom du produit *</label>
             <input className="input" value={form.nom}
