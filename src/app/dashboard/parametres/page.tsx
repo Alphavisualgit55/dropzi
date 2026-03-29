@@ -60,10 +60,21 @@ export default function ParametresPage() {
       </div>
       <div className="card">
         <h2 className="font-medium text-sm mb-3">Mon plan</h2>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-gray-600">Plan actuel</span>
-          <span className="bg-[#EEEDFE] text-[#534AB7] text-xs font-bold px-3 py-1 rounded-full">BUSINESS</span>
+          <span className={`text-xs font-bold px-3 py-1 rounded-full ${profil.plan === 'elite' ? 'bg-green-100 text-green-700' : profil.plan === 'business' ? 'bg-[#EEEDFE] text-[#534AB7]' : profil.plan === 'starter' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'}`}>
+              {profil.plan ? profil.plan.toUpperCase() : 'AUCUN'}
+            </span>
         </div>
+        {profil.plan_expires && (
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-sm text-gray-600">Expire le</span>
+            <span className="text-xs text-gray-500">{new Date(profil.plan_expires).toLocaleDateString('fr-FR')}</span>
+          </div>
+        )}
+        <a href="/dashboard/abonnement" className="block mt-3 text-center text-xs text-[#7F77DD] font-semibold">
+          Gérer mon abonnement →
+        </a>
       </div>
       <button onClick={logout} className="w-full btn-secondary text-sm">
         🚪 Déconnexion
