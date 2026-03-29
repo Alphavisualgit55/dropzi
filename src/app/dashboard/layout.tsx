@@ -15,6 +15,7 @@ const nav = [
   { href: '/dashboard/rapports', label: 'Rapports', icon: '📊' },
   { href: '/dashboard/factures', label: 'Factures', icon: '🧾' },
   { href: '/dashboard/import', label: 'Import Sheet', icon: '📥' },
+  { href: '/dashboard/import-produits', label: 'Import Produits', icon: '🛍️' },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
