@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import WizardOnboarding from '@/components/WizardOnboarding'
 
 const nav = [
   { href: '/dashboard', label: 'Accueil', icon: '🏠' },
@@ -216,6 +217,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </main>
 
+      <WizardOnboarding />
       {/* Bottom nav mobile */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0C0C1E] border-t border-white/10 flex z-50">
         {mobileNav.map(item => (
