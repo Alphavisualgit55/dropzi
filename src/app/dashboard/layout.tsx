@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import WizardOnboarding from '@/components/WizardOnboarding'
+import BackgroundSync from '@/components/BackgroundSync'
 
 const nav = [
   { href: '/dashboard', label: 'Accueil', icon: '🏠' },
@@ -51,13 +52,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'commandes' },
           () => {
-            const toast = { id: Date.now(), titre: '📦 Nouvelle commande !', message: 'Une nouvelle commande vient d'arriver.', type: 'success' }
+            const toast = { id: Date.now(), titre: '📦 Nouvelle commande !', message: "Une nouvelle commande vient d'arriver.", type: 'success' }
             setToasts(t => [...t, toast])
             setTimeout(() => setToasts(t => t.filter(x => x.id !== toast.id)), 5000)
           })
         .subscribe()
       return () => { supabase.removeChannel(ch) }
     })
+  }, [])
+
+  useEffect(() => {
+    const onToast = (e: any) => {
+      const t = { id: Date.now(), ...e.detail }
+      setToasts(ts => [...ts, t])
+      setTimeout(() => setToasts(ts => ts.filter(x => x.id !== t.id)), 5000)
+    }
+    window.addEventListener('dropzi:toast', onToast)
+    return () => window.removeEventListener('dropzi:toast', onToast)
   }, [])
 
   async function loadNotifs(uid: string) {
@@ -218,6 +229,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </main>
 
       <WizardOnboarding />
+      <BackgroundSync />
       {/* Bottom nav mobile */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0C0C1E] border-t border-white/10 flex z-50">
         {mobileNav.map(item => (
