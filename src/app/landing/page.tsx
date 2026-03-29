@@ -164,7 +164,7 @@ export default function LandingPage() {
           <Link href="/tutoriels" className="nav-link">Tutoriels</Link>
         </div>
         <Link href="/login" style={{ background: 'linear-gradient(135deg,#7F77DD,#534AB7)', color: '#fff', padding: '9px 22px', borderRadius: 12, fontSize: 14, fontWeight: 700, textDecoration: 'none', boxShadow: '0 4px 20px rgba(127,119,221,.4)' }}>
-          Essai gratuit →
+          S'abonner →
         </Link>
       </nav>
 
@@ -196,8 +196,8 @@ export default function LandingPage() {
             </p>
 
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 48 }}>
-              <Link href="/login" className="cta-main glow" style={{ background: 'linear-gradient(135deg,#7F77DD,#534AB7)', color: '#fff', padding: '17px 38px', borderRadius: 18, fontSize: 17, fontWeight: 800, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 10, boxShadow: '0 8px 32px rgba(127,119,221,.4)' }}>
-                Commencer gratuitement <span style={{ fontSize: 22 }}>→</span>
+              <Link href="/dashboard/abonnement" className="cta-main glow" style={{ background: 'linear-gradient(135deg,#7F77DD,#534AB7)', color: '#fff', padding: '17px 38px', borderRadius: 18, fontSize: 17, fontWeight: 800, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 10, boxShadow: '0 8px 32px rgba(127,119,221,.4)' }}>
+                S'abonner maintenant <span style={{ fontSize: 22 }}>→</span>
               </Link>
               <Link href="/tutoriels" style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.12)', color: 'rgba(255,255,255,.6)', padding: '17px 28px', borderRadius: 18, fontSize: 15, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 ▶ Voir la démo
@@ -438,7 +438,7 @@ export default function LandingPage() {
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
             <p style={{ fontSize: 12, fontWeight: 700, color: '#7F77DD', textTransform: 'uppercase', letterSpacing: '.15em', marginBottom: 12 }}>Tarifs</p>
             <h2 style={{ fontSize: 'clamp(28px,4vw,48px)', fontWeight: 800, letterSpacing: -2, marginBottom: 14 }}>Transparent. Abordable. Sans surprise.</h2>
-            <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 15 }}>7 jours gratuits · Aucune carte bancaire · Annulation immédiate</p>
+            <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 15 }}>Paiement sécurisé · Wave · Orange Money · Carte bancaire</p>
           </div>
           <div className="plans-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20 }}>
             {[
@@ -453,7 +453,7 @@ export default function LandingPage() {
                   <span style={{ fontSize: 42, fontWeight: 800, letterSpacing: -2 }}>{p.prix}</span>
                   <span style={{ fontSize: 13, color: 'rgba(255,255,255,.3)', marginLeft: 4 }}>FCFA/mois</span>
                 </div>
-                <p style={{ fontSize: 12, color: 'rgba(255,255,255,.25)', marginBottom: 22 }}>7 jours gratuits inclus</p>
+                <p style={{ fontSize: 12, color: 'rgba(255,255,255,.25)', marginBottom: 22 }}>Accès immédiat après paiement</p>
                 <div style={{ height: 1, background: 'rgba(255,255,255,.07)', marginBottom: 22 }} />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>
                   {p.features.map(f => (
@@ -463,8 +463,8 @@ export default function LandingPage() {
                     </div>
                   ))}
                 </div>
-                <Link href="/login" style={{ display: 'block', textAlign: 'center', background: (p as any).star ? 'linear-gradient(135deg,#7F77DD,#534AB7)' : 'rgba(255,255,255,.06)', color: '#fff', padding: '13px', borderRadius: 14, fontSize: 14, fontWeight: 700, textDecoration: 'none', border: (p as any).star ? 'none' : '1px solid rgba(255,255,255,.1)' }}>
-                  Commencer gratuitement
+                <Link href="/dashboard/abonnement" style={{ display: 'block', textAlign: 'center', background: (p as any).star ? 'linear-gradient(135deg,#7F77DD,#534AB7)' : 'rgba(255,255,255,.06)', color: '#fff', padding: '13px', borderRadius: 14, fontSize: 14, fontWeight: 700, textDecoration: 'none', border: (p as any).star ? 'none' : '1px solid rgba(255,255,255,.1)' }}>
+                  S'abonner maintenant
                 </Link>
               </div>
             ))}
@@ -494,10 +494,51 @@ export default function LandingPage() {
           <p style={{ color: '#1D9E75', fontWeight: 700, fontSize: 15, marginBottom: 40 }}>
             ⚡ Connexion Google Sheet en 1 minute · Bénéfice visible immédiatement
           </p>
-          <Link href="/login" className="cta-main glow" style={{ display: 'inline-flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg,#7F77DD,#534AB7)', color: '#fff', padding: '20px 52px', borderRadius: 20, fontSize: 19, fontWeight: 800, textDecoration: 'none', boxShadow: '0 0 60px rgba(127,119,221,.4)' }}>
+          <Link href="/dashboard/abonnement" className="cta-main glow" style={{ display: 'inline-flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg,#7F77DD,#534AB7)', color: '#fff', padding: '20px 52px', borderRadius: 20, fontSize: 19, fontWeight: 800, textDecoration: 'none', boxShadow: '0 0 60px rgba(127,119,221,.4)' }}>
             Créer mon compte gratuit <span style={{ fontSize: 24 }}>→</span>
           </Link>
-          <p style={{ color: 'rgba(255,255,255,.2)', fontSize: 13, marginTop: 20 }}>7 jours gratuits · Sans carte bancaire · Annulation en 1 clic</p>
+          <p style={{ color: 'rgba(255,255,255,.2)', fontSize: 13, marginTop: 20 }}>Paiement sécurisé via PayDunya · Wave · Orange Money</p>
+        </div>
+      </section>
+
+      {/* ── FORMULAIRE CONTACT ── */}
+      <section style={{ background: '#06060F', padding: '0 5vw 80px' }}>
+        <div style={{ maxWidth: 600, margin: '0 auto', background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 28, padding: '40px 36px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: '#7F77DD', textTransform: 'uppercase', letterSpacing: '.15em', marginBottom: 10 }}>Démarrer maintenant</p>
+            <h2 style={{ fontSize: 'clamp(24px,4vw,38px)', fontWeight: 800, letterSpacing: -1.5, marginBottom: 12 }}>Rejoins Dropzi aujourd'hui</h2>
+            <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 15 }}>Crée ton compte et configure ta boutique en moins de 3 minutes.</p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.08em', display: 'block', marginBottom: 8 }}>Nom de ta boutique</label>
+                <input placeholder="Ex: FashionDakar" style={{ width: '100%', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)', borderRadius: 12, padding: '12px 16px', color: '#fff', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.08em', display: 'block', marginBottom: 8 }}>Téléphone</label>
+                <input placeholder="77 000 00 00" style={{ width: '100%', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)', borderRadius: 12, padding: '12px 16px', color: '#fff', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const }} />
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.08em', display: 'block', marginBottom: 8 }}>Email</label>
+              <input type="email" placeholder="ton@email.com" style={{ width: '100%', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)', borderRadius: 12, padding: '12px 16px', color: '#fff', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.08em', display: 'block', marginBottom: 8 }}>Choisir ton plan</label>
+              <select style={{ width: '100%', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)', borderRadius: 12, padding: '12px 16px', color: '#fff', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const, cursor: 'pointer' }}>
+                <option value="starter" style={{ background: '#0C0C1E' }}>Starter — 3 000 FCFA/mois</option>
+                <option value="business" style={{ background: '#0C0C1E' }}>Business — 5 000 FCFA/mois ⭐</option>
+                <option value="elite" style={{ background: '#0C0C1E' }}>Elite — 15 000 FCFA/mois</option>
+              </select>
+            </div>
+            <Link href="/login" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'linear-gradient(135deg,#7F77DD,#534AB7)', color: '#fff', padding: '16px', borderRadius: 16, fontSize: 16, fontWeight: 800, textDecoration: 'none', boxShadow: '0 4px 24px rgba(127,119,221,.4)', marginTop: 4 }}>
+              Créer mon compte <span style={{ fontSize: 20 }}>→</span>
+            </Link>
+            <p style={{ textAlign: 'center', fontSize: 12, color: 'rgba(255,255,255,.2)' }}>
+              Paiement sécurisé · Wave · Orange Money · Carte bancaire
+            </p>
+          </div>
         </div>
       </section>
 
