@@ -36,74 +36,69 @@ export default function ImportProduitsPage() {
   }, [])
 
   function parseShopifyCSV(text: string): ProduitImport[] {
-    // Parser CSV robuste qui gère les guillemets et virgules dans les valeurs
-    function parseCSVLine(line: string): string[] {
-      const result: string[] = []
-      let current = ''
-      let inQuotes = false
-      for (let i = 0; i < line.length; i++) {
-        if (line[i] === '"') {
-          if (inQuotes && line[i+1] === '"') { current += '"'; i++ }
-          else inQuotes = !inQuotes
-        } else if (line[i] === ',' && !inQuotes) {
-          result.push(current.trim()); current = ''
-        } else {
-          current += line[i]
+    // Parser CSV complet qui gère les cellules multiligne (HTML dans Body)
+    function parseFullCSV(csv: string): string[][] {
+      const rows: string[][] = []
+      let row: string[] = []
+      let cell = ''
+      let inQ = false
+      let i = 0
+      while (i < csv.length) {
+        const c = csv[i]
+        if (c === '"') {
+          if (inQ && csv[i+1] === '"') { cell += '"'; i += 2; continue }
+          inQ = !inQ; i++; continue
         }
+        if (c === ',' && !inQ) { row.push(cell); cell = ''; i++; continue }
+        if ((c === '\n' || (c === '\r' && csv[i+1] === '\n')) && !inQ) {
+          row.push(cell); rows.push(row); row = []; cell = ''
+          if (c === '\r') i++
+          i++; continue
+        }
+        cell += c; i++
       }
-      result.push(current.trim())
-      return result
+      if (cell || row.length) { row.push(cell); rows.push(row) }
+      return rows
     }
 
-    const lines = text.split('\n').filter(l => l.trim())
-    if (lines.length < 2) return []
+    const rows = parseFullCSV(text)
+    if (rows.length < 2) return []
 
-    const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim())
-
-    // Colonnes Shopify exactes
+    const headers = rows[0].map(h => h.toLowerCase().trim())
     const idx = {
-      nom:   headers.findIndex(h => h === 'title' || h === 'nom' || h === 'product name' || h === 'name'),
-      prix:  headers.findIndex(h => h === 'variant price' || h === 'price' || h === 'prix'),
-      cout:  headers.findIndex(h => h === 'cost per item' || h === 'cost' || h === 'cout' || h === 'cost per unit'),
-      image: headers.findIndex(h => h === 'image src' || h === 'image' || h === 'img src' || h === 'image url'),
-      sku:   headers.findIndex(h => h === 'variant sku' || h === 'sku'),
-      stock: headers.findIndex(h => h.includes('inventory qty') || h.includes('stock')),
-      status:headers.findIndex(h => h === 'status'),
+      nom:    headers.findIndex(h => h === 'title'),
+      prix:   headers.findIndex(h => h === 'variant price'),
+      cout:   headers.findIndex(h => h === 'cost per item'),
+      image:  headers.findIndex(h => h === 'image src'),
+      sku:    headers.findIndex(h => h === 'variant sku'),
+      status: headers.findIndex(h => h === 'status'),
     }
 
     const seen = new Set<string>()
     const result: ProduitImport[] = []
 
-    for (let i = 1; i < lines.length; i++) {
-      const cols = parseCSVLine(lines[i])
-      const nom = idx.nom >= 0 ? (cols[idx.nom] || '').trim() : ''
-      // Ignorer lignes vides (variantes Shopify) et doublons
+    for (let i = 1; i < rows.length; i++) {
+      const cols = rows[i]
+      const nom = (idx.nom >= 0 ? cols[idx.nom] || '' : '').trim()
       if (!nom || seen.has(nom.toLowerCase())) continue
-      // Ignorer produits inactifs si colonne Status présente
       if (idx.status >= 0 && cols[idx.status] && cols[idx.status].toLowerCase() !== 'active') continue
       seen.add(nom.toLowerCase())
 
-      const prix = idx.prix >= 0 ? parseFloat(cols[idx.prix]) || 0 : 0
-      const cout = idx.cout >= 0 ? parseFloat(cols[idx.cout]) || 0 : 0
-      const image = idx.image >= 0 ? (cols[idx.image] || '').trim() : ''
-      const sku = idx.sku >= 0 ? (cols[idx.sku] || '').trim() : ''
-      const stock = idx.stock >= 0 ? parseInt(cols[idx.stock]) || 0 : 0
+      const prix = parseFloat(idx.prix >= 0 ? cols[idx.prix] || '0' : '0') || 0
+      const cout = parseFloat(idx.cout >= 0 ? cols[idx.cout] || '0' : '0') || 0
+      const image = (idx.image >= 0 ? cols[idx.image] || '' : '').trim()
+      const sku = (idx.sku >= 0 ? cols[idx.sku] || '' : '').trim()
 
-      // Ignorer si le nom contient du HTML ou est trop court
-      const nomClean = nom.replace(/<[^>]*>/g, '').trim()
-      if (!nomClean || nomClean.length < 3) continue
-      if (nomClean.includes('<') || nomClean.includes('>') || nomClean.includes('</')) continue
-      // Ignorer si prix ET cout sont à 0 (probablement une ligne parasite)
-      if (prix === 0 && cout === 0 && !sku) continue
+      if (nom.length < 2 || prix === 0) continue
 
       result.push({
-        nom: nomClean,
+        nom,
         prix_vente: prix,
         cout_achat: cout,
         image_url: image,
         sku,
-        stock,
-        status: existants.includes(nomClean.toLowerCase()) ? 'exists' : 'pending'
+        stock: 0,
+        status: existants.includes(nom.toLowerCase()) ? 'exists' : 'pending'
       })
     }
     return result
