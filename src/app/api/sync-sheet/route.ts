@@ -151,12 +151,14 @@ async function syncUser(config: any): Promise<number> {
       if (!planOk.data) {
         console.log(`Limite commandes atteinte pour user ${userId}`)
         // Notifier une seule fois
-        await supabase.from('notifications_user').insert({
-          user_id: userId,
-          titre: '🚫 Limite de commandes atteinte',
-          message: 'Tu as atteint la limite de commandes de ton plan. Upgrade pour continuer à recevoir des commandes automatiquement.',
-          type: 'warning',
-        }).catch(() => {})
+        try {
+          await supabase.from('notifications_user').insert({
+            user_id: userId,
+            titre: '🚫 Limite de commandes atteinte',
+            message: 'Tu as atteint la limite de commandes de ton plan. Upgrade pour continuer.',
+            type: 'warning',
+          })
+        } catch (_) {}
         break
       }
 
