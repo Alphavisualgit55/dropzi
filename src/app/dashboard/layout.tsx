@@ -35,8 +35,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) { router.push('/login'); return }
       setUserId(user.id)
-      supabase.from('profiles').select('nom_boutique').eq('id', user.id).single()
-        .then(({ data }) => { if (data?.nom_boutique) setBoutique(data.nom_boutique) })
+      supabase.from('profiles').select('nom_boutique, plan, plan_expires').eq('id', user.id).single()
+        .then(({ data }) => {
+          if (data?.nom_boutique) setBoutique(data.nom_boutique)
+          // Vérifier abonnement actif
+          const planValide = data?.plan && !['aucun','gratuit',null,''].includes(data.plan)
+          const nonExpire = data?.plan_expires ? new Date(data.plan_expires) > new Date() : false
+          if (!planValide || !nonExpire) {
+            // Autoriser accès à la page abonnement seulement
+            if (!window.location.pathname.includes('/abonnement')) {
+              router.push('/dashboard/abonnement')
+            }
+          }
+        })
       // Charger notifications
       loadNotifs(user.id)
       // Realtime notifications
