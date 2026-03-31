@@ -1,98 +1,59 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
+import Link from 'next/link'
 
-const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n || 0))
-
-const THEMES = [
-  {
-    id: 'dark',
-    nom: 'Dark Premium',
-    bg: 'linear-gradient(135deg,#06060F 0%,#0C0C1E 50%,#1a1a3e 100%)',
-    accent: '#7F77DD',
-    text: '#fff',
-    sub: 'rgba(255,255,255,.5)',
-    card: 'rgba(255,255,255,.06)',
-    border: 'rgba(127,119,221,.3)',
-  },
-  {
-    id: 'gold',
-    nom: 'Gold Luxe',
-    bg: 'linear-gradient(135deg,#0A0800 0%,#1A1200 50%,#2A1E00 100%)',
-    accent: '#F5C842',
-    text: '#fff',
-    sub: 'rgba(245,200,66,.6)',
-    card: 'rgba(245,200,66,.08)',
-    border: 'rgba(245,200,66,.3)',
-  },
-  {
-    id: 'green',
-    nom: 'Green Money',
-    bg: 'linear-gradient(135deg,#000D06 0%,#001A0C 50%,#002A14 100%)',
-    accent: '#00E676',
-    text: '#fff',
-    sub: 'rgba(0,230,118,.6)',
-    card: 'rgba(0,230,118,.08)',
-    border: 'rgba(0,230,118,.25)',
-  },
-  {
-    id: 'purple',
-    nom: 'Purple King',
-    bg: 'linear-gradient(135deg,#0D0020 0%,#1A0040 50%,#2D0060 100%)',
-    accent: '#BF5FFF',
-    text: '#fff',
-    sub: 'rgba(191,95,255,.6)',
-    card: 'rgba(191,95,255,.08)',
-    border: 'rgba(191,95,255,.3)',
-  },
-  {
-    id: 'fire',
-    nom: 'Fire Boss',
-    bg: 'linear-gradient(135deg,#0D0000 0%,#200000 50%,#350800 100%)',
-    accent: '#FF4D00',
-    text: '#fff',
-    sub: 'rgba(255,77,0,.6)',
-    card: 'rgba(255,77,0,.08)',
-    border: 'rgba(255,77,0,.3)',
-  },
-]
+const fmt = (n: number) => {
+  if (n >= 1000000) return (n / 1000000).toFixed(1).replace('.0','') + ' M'
+  if (n >= 1000) return (n / 1000).toFixed(0) + ' k'
+  return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0))
+}
+const fmtFull = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n || 0))
 
 const PERIODES = [
-  { id: 'today', label: "Aujourd'hui" },
-  { id: 'week', label: '7 jours' },
-  { id: 'month', label: 'Ce mois' },
+  { id: 'today', label: "Aujourd'hui", days: 0 },
+  { id: '7j', label: '7 derniers jours', days: 7 },
+  { id: '30j', label: '30 derniers jours', days: 30 },
 ]
 
-export default function FlexPage() {
+export default function DashboardPage() {
   const supabase = createClient()
-  const cardRef = useRef<HTMLDivElement>(null)
-  const [theme, setTheme] = useState(THEMES[0])
-  const [periode, setPeriode] = useState('today')
-  const [stats, setStats] = useState({ benef: 0, ca: 0, nb: 0, livrees: 0, topProduit: '' })
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [periode, setPeriode] = useState('7j')
+  const [showPeriodeMenu, setShowPeriodeMenu] = useState(false)
+  const [stats, setStats] = useState({ benef: 0, ca: 0, nb: 0, livrees: 0, en_cours: 0, annulees: 0, en_attente: 0 })
+  const [prevStats, setPrevStats] = useState({ benef: 0, ca: 0, nb: 0 })
+  const [chartData, setChartData] = useState<{ label: string; ca: number; benef: number }[]>([])
+  const [recentCmds, setRecentCmds] = useState<any[]>([])
   const [boutique, setBoutique] = useState('Ma Boutique')
   const [loading, setLoading] = useState(true)
-  const [copying, setCopying] = useState(false)
-  const [showEmoji, setShowEmoji] = useState(true)
-  const [showLogo, setShowLogo] = useState(true)
+  const [liveCount, setLiveCount] = useState(0)
+  const [profil, setProfil] = useState<any>(null)
 
-  useEffect(() => {
-    load()
-  }, [periode])
-
-  async function load() {
-    setLoading(true)
+  const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
     const now = new Date()
-    let depuis = new Date()
-    if (periode === 'today') { depuis.setHours(0,0,0,0) }
-    else if (periode === 'week') { depuis.setDate(now.getDate() - 7) }
-    else { depuis.setDate(1); depuis.setHours(0,0,0,0) }
+    const p = PERIODES.find(p => p.id === periode)!
+    const since = new Date()
+    if (periode === 'today') { since.setHours(0, 0, 0, 0) }
+    else { since.setDate(now.getDate() - p.days); since.setHours(0, 0, 0, 0) }
 
-    const [cmd, pr] = await Promise.all([
-      supabase.from('commandes_detail').select('*').gte('created_at', depuis.toISOString()),
-      supabase.from('profiles').select('nom_boutique').eq('id', user.id).single(),
+    const prevSince = new Date(since)
+    const prevUntil = new Date(since)
+    if (periode === 'today') {
+      prevSince.setDate(since.getDate() - 1)
+      prevUntil.setDate(since.getDate())
+    } else {
+      prevSince.setDate(since.getDate() - p.days)
+    }
+
+    const [cmd, prev, pr, live] = await Promise.all([
+      supabase.from('commandes_detail').select('*').gte('created_at', since.toISOString()).order('created_at', { ascending: false }),
+      supabase.from('commandes_detail').select('total_vente,benefice,statut').gte('created_at', prevSince.toISOString()).lt('created_at', since.toISOString()),
+      supabase.from('profiles').select('*').eq('id', user.id).single(),
+      supabase.from('sessions_live').select('*', { count: 'exact', head: true }).gte('updated_at', new Date(Date.now() - 35000).toISOString()),
     ])
 
     const data = cmd.data || []
@@ -100,196 +61,376 @@ export default function FlexPage() {
     const ca = livrees.reduce((s: number, c: any) => s + (c.total_vente || 0), 0)
     const benef = livrees.reduce((s: number, c: any) => s + (c.benefice || 0), 0)
 
-    // Top produit
-    const prodCounts: Record<string, number> = {}
-    data.forEach((c: any) => {
-      if (c.produit_nom) prodCounts[c.produit_nom] = (prodCounts[c.produit_nom] || 0) + 1
-    })
-    const top = Object.entries(prodCounts).sort((a, b) => b[1] - a[1])[0]
+    const prevData = (prev.data || []).filter((c: any) => c.statut === 'livre')
+    const prevCa = prevData.reduce((s: number, c: any) => s + (c.total_vente || 0), 0)
+    const prevBenef = prevData.reduce((s: number, c: any) => s + (c.benefice || 0), 0)
 
-    setStats({ benef, ca, nb: data.length, livrees: livrees.length, topProduit: top?.[0] || '' })
+    setStats({ benef, ca, nb: data.length, livrees: livrees.length, en_cours: data.filter((c: any) => c.statut === 'en_livraison').length, annulees: data.filter((c: any) => ['annule', 'echec'].includes(c.statut)).length, en_attente: data.filter((c: any) => c.statut === 'en_attente').length })
+    setPrevStats({ benef: prevBenef, ca: prevCa, nb: (prev.data || []).length })
+    setRecentCmds(data.slice(0, 6))
     setBoutique(pr.data?.nom_boutique || 'Ma Boutique')
-    setLoading(false)
-  }
+    setProfil(pr.data)
+    setLiveCount(live.count || 0)
 
-  async function takeScreenshot() {
-    setCopying(true)
-    try {
-      const html2canvas = (await import('html2canvas')).default
-      const canvas = await html2canvas(cardRef.current!, {
-        scale: 3,
-        useCORS: true,
-        backgroundColor: null,
-        logging: false,
+    // Données graphique
+    const nbPoints = periode === 'today' ? 24 : p.days
+    const points: { label: string; ca: number; benef: number }[] = []
+    for (let i = nbPoints - 1; i >= 0; i--) {
+      const d = new Date(since)
+      let label = ''
+      let dStart: Date, dEnd: Date
+      if (periode === 'today') {
+        dStart = new Date(since); dStart.setHours(i, 0, 0, 0)
+        dEnd = new Date(since); dEnd.setHours(i + 1, 0, 0, 0)
+        label = `${i}h`
+      } else {
+        dStart = new Date(since); dStart.setDate(since.getDate() + (nbPoints - 1 - i))
+        dEnd = new Date(dStart); dEnd.setDate(dStart.getDate() + 1)
+        label = dStart.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+      }
+      const dayData = livrees.filter((c: any) => {
+        const cd = new Date(c.created_at)
+        return cd >= dStart && cd < dEnd
       })
-      canvas.toBlob(blob => {
-        if (!blob) return
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `dropzi-flex-${periode}.png`
-        a.click()
-        URL.revokeObjectURL(url)
-      }, 'image/png')
-    } catch (e) {
-      alert('Erreur lors de la capture. Essaie de faire une capture manuelle.')
+      points.push({
+        label,
+        ca: dayData.reduce((s: number, c: any) => s + (c.total_vente || 0), 0),
+        benef: dayData.reduce((s: number, c: any) => s + (c.benefice || 0), 0),
+      })
     }
-    setCopying(false)
-  }
+    setChartData(points)
+    setLoading(false)
+  }, [periode])
 
-  const t = theme
-  const periodeLabel = PERIODES.find(p => p.id === periode)?.label || ''
+  useEffect(() => {
+    load()
+    const iv = setInterval(load, 15000)
+    const ch = supabase.channel('dash-live').on('postgres_changes', { event: '*', schema: 'public', table: 'commandes' }, load).subscribe()
+    return () => { clearInterval(iv); supabase.removeChannel(ch) }
+  }, [load])
+
+  // Dessiner le graphique courbe style Shopify
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || chartData.length === 0) return
+    const dpr = window.devicePixelRatio || 1
+    const W = canvas.offsetWidth
+    const H = canvas.offsetHeight
+    canvas.width = W * dpr
+    canvas.height = H * dpr
+    const ctx = canvas.getContext('2d')!
+    ctx.scale(dpr, dpr)
+    ctx.clearRect(0, 0, W, H)
+
+    const maxCa = Math.max(...chartData.map(d => d.ca), 1)
+    const pad = { top: 20, bottom: 36, left: 48, right: 16 }
+    const gW = W - pad.left - pad.right
+    const gH = H - pad.top - pad.bottom
+
+    // Lignes horizontales
+    const steps = 4
+    ctx.strokeStyle = 'rgba(0,0,0,.06)'
+    ctx.lineWidth = 1
+    for (let i = 0; i <= steps; i++) {
+      const y = pad.top + (gH / steps) * i
+      ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke()
+      const val = maxCa * (1 - i / steps)
+      ctx.fillStyle = 'rgba(0,0,0,.35)'
+      ctx.font = '10px -apple-system,sans-serif'
+      ctx.textAlign = 'right'
+      ctx.fillText(fmt(val), pad.left - 6, y + 4)
+    }
+
+    const pts = chartData.map((d, i) => ({
+      x: pad.left + (i / (chartData.length - 1)) * gW,
+      y: pad.top + (1 - d.ca / maxCa) * gH,
+      ca: d.ca,
+    }))
+
+    // Gradient fill sous la courbe CA
+    const grad = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom)
+    grad.addColorStop(0, 'rgba(0,122,255,.18)')
+    grad.addColorStop(1, 'rgba(0,122,255,.01)')
+    ctx.beginPath()
+    ctx.moveTo(pts[0].x, H - pad.bottom)
+    pts.forEach((p, i) => {
+      if (i === 0) ctx.lineTo(p.x, p.y)
+      else {
+        const prev = pts[i - 1]
+        const cpx = (prev.x + p.x) / 2
+        ctx.bezierCurveTo(cpx, prev.y, cpx, p.y, p.x, p.y)
+      }
+    })
+    ctx.lineTo(pts[pts.length - 1].x, H - pad.bottom)
+    ctx.closePath()
+    ctx.fillStyle = grad
+    ctx.fill()
+
+    // Courbe CA
+    ctx.beginPath()
+    ctx.strokeStyle = '#007AFF'
+    ctx.lineWidth = 2.5
+    ctx.lineJoin = 'round'
+    pts.forEach((p, i) => {
+      if (i === 0) ctx.moveTo(p.x, p.y)
+      else {
+        const prev = pts[i - 1]
+        const cpx = (prev.x + p.x) / 2
+        ctx.bezierCurveTo(cpx, prev.y, cpx, p.y, p.x, p.y)
+      }
+    })
+    ctx.stroke()
+
+    // Labels axe X (espacés)
+    const step = Math.max(1, Math.floor(chartData.length / 5))
+    ctx.fillStyle = 'rgba(0,0,0,.35)'
+    ctx.font = '10px -apple-system,sans-serif'
+    ctx.textAlign = 'center'
+    chartData.forEach((d, i) => {
+      if (i % step === 0 || i === chartData.length - 1) {
+        ctx.fillText(d.label, pts[i].x, H - 8)
+      }
+    })
+
+    // Points sur les valeurs non nulles
+    pts.forEach(p => {
+      if (p.ca > 0) {
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2)
+        ctx.fillStyle = '#007AFF'
+        ctx.fill()
+        ctx.strokeStyle = '#fff'
+        ctx.lineWidth = 1.5
+        ctx.stroke()
+      }
+    })
+  }, [chartData])
+
+  const pct = (cur: number, prev: number) => prev > 0 ? Math.round(((cur - prev) / prev) * 100) : 0
+  const pctCa = pct(stats.ca, prevStats.ca)
+  const pctNb = pct(stats.nb, prevStats.nb)
   const taux = stats.nb > 0 ? Math.round((stats.livrees / stats.nb) * 100) : 0
-  const margeLabel = stats.ca > 0 ? Math.round((stats.benef / stats.ca) * 100) : 0
+  const periodeLabel = PERIODES.find(p => p.id === periode)?.label || ''
+
+  const STATUT_CFG: Record<string, { color: string; bg: string }> = {
+    en_attente:   { color: '#633806', bg: '#FAEEDA' },
+    en_livraison: { color: '#0C447C', bg: '#E6F1FB' },
+    livre:        { color: '#085041', bg: '#E1F5EE' },
+    annule:       { color: '#501313', bg: '#FCEBEB' },
+    echec:        { color: '#444', bg: '#F1EFE8' },
+  }
+  const STATUT_LABEL: Record<string, string> = { en_attente: 'En attente', en_livraison: 'En livraison', livre: 'Livré', annule: 'Annulé', echec: 'Échec' }
+
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ width: 36, height: 36, border: '3px solid #007AFF', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .8s linear infinite' }} />
+    </div>
+  )
 
   return (
-    <div style={{ maxWidth: 500, margin: '0 auto', paddingBottom: 40 }}>
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0C0C1E', letterSpacing: -.5 }}>Mes Stats 📈</h1>
-        <p style={{ fontSize: 13, color: '#ABABAB', marginTop: 4 }}>Génère une carte de tes ventes à partager sur WhatsApp & Instagram</p>
-      </div>
+    <>
+      <style>{`
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+        .dash-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:#F0F0F0;}
+        .stat-cell{background:#fff;padding:16px 18px;}
+        .cmd-row{transition:background .12s;cursor:pointer;}
+        .cmd-row:hover{background:#F9F9F9!important;}
+        .periode-btn{transition:all .15s;cursor:pointer;font-family:inherit;}
+        @media(max-width:600px){
+          .dash-row{grid-template-columns:1fr 1fr!important;}
+          .top-row{flex-direction:column!important;align-items:flex-start!important;gap:12px!important;}
+        }
+      `}</style>
 
-      {/* Sélecteur période */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        {PERIODES.map(p => (
-          <button key={p.id} onClick={() => setPeriode(p.id)}
-            style={{ flex: 1, padding: '9px', borderRadius: 12, border: `2px solid ${periode === p.id ? '#7F77DD' : '#EBEBEB'}`, background: periode === p.id ? '#EEEDFE' : '#fff', color: periode === p.id ? '#534AB7' : '#888', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
-            {p.label}
-          </button>
-        ))}
-      </div>
+      <div style={{ maxWidth: 720, margin: '0 auto', paddingBottom: 48 }}>
 
-      {/* Sélecteur thème */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, overflowX: 'auto', paddingBottom: 4 }}>
-        {THEMES.map(th => (
-          <button key={th.id} onClick={() => setTheme(th)}
-            style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 12, background: th.bg, border: `3px solid ${theme.id === th.id ? th.accent : 'transparent'}`, cursor: 'pointer', position: 'relative', overflow: 'hidden' }}>
-            {theme.id === th.id && (
-              <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✓</span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* Options */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-        {[['showEmoji', showEmoji, setShowEmoji, '🔥 Emojis'], ['showLogo', showLogo, setShowLogo, '🏷️ Logo Dropzi']].map(([key, val, setter, label]: any) => (
-          <button key={key} onClick={() => setter(!val)}
-            style={{ flex: 1, padding: '8px', borderRadius: 10, border: `1.5px solid ${val ? '#7F77DD' : '#EBEBEB'}`, background: val ? '#EEEDFE' : '#fff', color: val ? '#534AB7' : '#ABABAB', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* CARTE FLEX */}
-      <div ref={cardRef} style={{ background: t.bg, borderRadius: 24, padding: '28px 24px', position: 'relative', overflow: 'hidden', marginBottom: 20 }}>
-        {/* Orbes déco */}
-        <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, background: `radial-gradient(circle,${t.accent}25,transparent 70%)`, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: -30, left: -30, width: 120, height: 120, background: `radial-gradient(circle,${t.accent}15,transparent 70%)`, pointerEvents: 'none' }} />
-
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        {/* HEADER */}
+        <div className="top-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
           <div>
-            <p style={{ fontSize: 11, color: t.sub, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 4 }}>
-              {showEmoji ? '🏪 ' : ''}{boutique}
-            </p>
-            <p style={{ fontSize: 13, color: t.sub, fontWeight: 500 }}>
-              Rapport — {periodeLabel}
-            </p>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1A1A1A', letterSpacing: -.3, margin: 0 }}>{boutique}</h1>
           </div>
-          <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: '5px 12px' }}>
-            <span style={{ fontSize: 11, color: t.accent, fontWeight: 700 }}>
-              {showEmoji ? '⚡ ' : ''}DROPZI
-            </span>
-          </div>
-        </div>
-
-        {/* Bénéfice principal */}
-        <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 20, padding: '20px', marginBottom: 16 }}>
-          <p style={{ fontSize: 10, color: t.sub, textTransform: 'uppercase', letterSpacing: '.12em', marginBottom: 8 }}>
-            {showEmoji ? '💰 ' : ''}Bénéfice net
-          </p>
-          <p style={{ fontSize: 48, fontWeight: 800, color: t.text, letterSpacing: -2.5, lineHeight: 1, marginBottom: 6 }}>
-            {fmt(stats.benef)}
-            <span style={{ fontSize: 18, color: t.sub, marginLeft: 6 }}>FCFA</span>
-          </p>
-          <div style={{ display: 'flex', gap: 16, marginTop: 12, paddingTop: 12, borderTop: `1px solid ${t.border}` }}>
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 700, color: t.text }}>{fmt(stats.ca)} F</p>
-              <p style={{ fontSize: 9, color: t.sub, textTransform: 'uppercase', letterSpacing: '.06em' }}>CA Total</p>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* Visiteurs live */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F0FFF4', border: '1px solid #BBF7D0', borderRadius: 20, padding: '6px 12px' }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#16A34A', animation: 'pulse 2s infinite' }} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#15803D' }}>{liveCount} visiteur{liveCount > 1 ? 's' : ''}</span>
             </div>
-            <div style={{ width: 1, background: t.border }} />
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 700, color: t.accent }}>{margeLabel}%</p>
-              <p style={{ fontSize: 9, color: t.sub, textTransform: 'uppercase', letterSpacing: '.06em' }}>Marge</p>
-            </div>
-            <div style={{ width: 1, background: t.border }} />
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 700, color: t.text }}>{stats.nb}</p>
-              <p style={{ fontSize: 9, color: t.sub, textTransform: 'uppercase', letterSpacing: '.06em' }}>Commandes</p>
+            {/* Sélecteur période */}
+            <div style={{ position: 'relative' }}>
+              <button className="periode-btn" onClick={() => setShowPeriodeMenu(v => !v)}
+                style={{ background: '#fff', border: '1px solid #E0E0E0', borderRadius: 20, padding: '6px 14px', fontSize: 13, fontWeight: 600, color: '#333', display: 'flex', alignItems: 'center', gap: 6 }}>
+                {periodeLabel} <span style={{ fontSize: 10, color: '#999' }}>▼</span>
+              </button>
+              {showPeriodeMenu && (
+                <div style={{ position: 'absolute', top: '110%', right: 0, background: '#fff', border: '1px solid #E0E0E0', borderRadius: 14, padding: 6, zIndex: 50, minWidth: 180, boxShadow: '0 8px 32px rgba(0,0,0,.12)' }}>
+                  {PERIODES.map(p => (
+                    <button key={p.id} onClick={() => { setPeriode(p.id); setShowPeriodeMenu(false) }}
+                      style={{ display: 'block', width: '100%', padding: '9px 14px', fontSize: 13, fontWeight: periode === p.id ? 700 : 500, color: periode === p.id ? '#007AFF' : '#333', background: 'none', border: 'none', borderRadius: 10, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Stats secondaires */}
+        {/* GRANDE STAT CA */}
+        <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #F0F0F0', padding: '20px 20px 0', marginBottom: 2, boxShadow: '0 1px 8px rgba(0,0,0,.05)' }}>
+          <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', marginBottom: 16 }}>
+            {/* CA */}
+            <div>
+              <p style={{ fontSize: 12, color: '#888', fontWeight: 500, marginBottom: 6 }}>Ventes totales</p>
+              <p style={{ fontSize: 38, fontWeight: 700, color: '#1A1A1A', letterSpacing: -1.5, lineHeight: 1, marginBottom: 4 }}>{fmt(stats.ca)} <span style={{ fontSize: 16, color: '#999', fontWeight: 500 }}>F CFA</span></p>
+              {pctCa !== 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: pctCa > 0 ? '#16A34A' : '#DC2626' }}>
+                    {pctCa > 0 ? '↑' : '↓'} {Math.abs(pctCa)} %
+                  </span>
+                  <span style={{ fontSize: 12, color: '#999' }}>vs période précédente</span>
+                </div>
+              )}
+            </div>
+            {/* Bénéfice */}
+            <div>
+              <p style={{ fontSize: 12, color: '#888', fontWeight: 500, marginBottom: 6 }}>Bénéfice net</p>
+              <p style={{ fontSize: 28, fontWeight: 700, color: '#16A34A', letterSpacing: -1, lineHeight: 1, marginBottom: 4 }}>{fmt(stats.benef)} <span style={{ fontSize: 14, fontWeight: 500 }}>F</span></p>
+              <p style={{ fontSize: 12, color: '#999' }}>Marge {stats.ca > 0 ? Math.round((stats.benef / stats.ca) * 100) : 0}%</p>
+            </div>
+            {/* Commandes */}
+            <div>
+              <p style={{ fontSize: 12, color: '#888', fontWeight: 500, marginBottom: 6 }}>Commandes</p>
+              <p style={{ fontSize: 28, fontWeight: 700, color: '#1A1A1A', letterSpacing: -1, lineHeight: 1, marginBottom: 4 }}>{stats.nb}</p>
+              {pctNb !== 0 && (
+                <span style={{ fontSize: 13, fontWeight: 700, color: pctNb > 0 ? '#16A34A' : '#DC2626' }}>
+                  {pctNb > 0 ? '↑' : '↓'} {Math.abs(pctNb)} %
+                </span>
+              )}
+            </div>
+            {/* Taux livraison */}
+            <div>
+              <p style={{ fontSize: 12, color: '#888', fontWeight: 500, marginBottom: 6 }}>Taux livraison</p>
+              <p style={{ fontSize: 28, fontWeight: 700, color: taux > 70 ? '#16A34A' : taux > 40 ? '#D97706' : '#DC2626', letterSpacing: -1, lineHeight: 1, marginBottom: 4 }}>{taux} %</p>
+              <p style={{ fontSize: 12, color: '#999' }}>{stats.livrees} livrées</p>
+            </div>
+          </div>
+
+          {/* GRAPHIQUE COURBE */}
+          <div style={{ height: 180, position: 'relative', marginLeft: -4, marginRight: -4 }}>
+            {chartData.every(d => d.ca === 0) ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 8 }}>
+                <span style={{ fontSize: 32 }}>📊</span>
+                <p style={{ fontSize: 13, color: '#C0C0C0' }}>Aucune vente sur cette période</p>
+              </div>
+            ) : (
+              <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
+            )}
+          </div>
+        </div>
+
+        {/* STATS GRILLE */}
+        <div className="dash-row" style={{ borderRadius: 18, overflow: 'hidden', marginBottom: 16, boxShadow: '0 1px 8px rgba(0,0,0,.05)', border: '1px solid #F0F0F0' }}>
+          {[
+            { lbl: 'En attente', val: stats.en_attente, color: '#D97706', icon: '⏳' },
+            { lbl: 'En livraison', val: stats.en_cours, color: '#2563EB', icon: '🚚' },
+            { lbl: 'Livrées', val: stats.livrees, color: '#16A34A', icon: '✅' },
+            { lbl: 'Annulées', val: stats.annulees, color: '#DC2626', icon: '❌' },
+            { lbl: 'Panier moy.', val: stats.livrees > 0 ? Math.round(stats.ca / stats.livrees) : 0, color: '#7C3AED', icon: '💰', isMoney: true },
+            { lbl: 'Bénéf./cmd', val: stats.livrees > 0 ? Math.round(stats.benef / stats.livrees) : 0, color: '#059669', icon: '📈', isMoney: true },
+          ].map((s, i) => (
+            <div key={i} className="stat-cell">
+              <p style={{ fontSize: 11, color: '#999', fontWeight: 500, marginBottom: 8 }}>{s.icon} {s.lbl}</p>
+              <p style={{ fontSize: 24, fontWeight: 700, color: s.color, letterSpacing: -1, lineHeight: 1 }}>
+                {(s as any).isMoney ? fmt(s.val) + ' F' : s.val}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* BOUTONS RAPIDES */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-          <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: '14px' }}>
-            <p style={{ fontSize: 9, color: t.sub, textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>
-              {showEmoji ? '✅ ' : ''}Livrées
-            </p>
-            <p style={{ fontSize: 28, fontWeight: 800, color: t.accent, letterSpacing: -1 }}>{stats.livrees}</p>
-            <p style={{ fontSize: 10, color: t.sub, marginTop: 4 }}>Taux {taux}%</p>
+          <Link href="/dashboard/commandes" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', border: '1px solid #F0F0F0', borderRadius: 14, padding: '14px 16px', textDecoration: 'none', boxShadow: '0 1px 6px rgba(0,0,0,.04)' }}>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#1A1A1A', marginBottom: 2 }}>Commandes</p>
+              <p style={{ fontSize: 12, color: '#999' }}>à traiter</p>
+            </div>
+            <div style={{ background: '#FEF3C7', borderRadius: 10, padding: '6px 12px' }}>
+              <span style={{ fontSize: 18, fontWeight: 800, color: '#D97706' }}>{stats.en_attente}</span>
+            </div>
+          </Link>
+          <Link href="/dashboard/import" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', border: '1px solid #F0F0F0', borderRadius: 14, padding: '14px 16px', textDecoration: 'none', boxShadow: '0 1px 6px rgba(0,0,0,.04)' }}>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#1A1A1A', marginBottom: 2 }}>Sync Sheet</p>
+              <p style={{ fontSize: 12, color: '#999' }}>automatique</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#16A34A', animation: 'pulse 2s infinite' }} />
+              <span style={{ fontSize: 12, color: '#16A34A', fontWeight: 600 }}>Active</span>
+            </div>
+          </Link>
+        </div>
+
+        {/* COMMANDES RÉCENTES */}
+        <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #F0F0F0', overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,.05)', marginBottom: 16 }}>
+          <div style={{ padding: '16px 18px', borderBottom: '1px solid #F5F5F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <p style={{ fontSize: 15, fontWeight: 700, color: '#1A1A1A' }}>Commandes récentes</p>
+            <Link href="/dashboard/commandes" style={{ fontSize: 13, color: '#007AFF', textDecoration: 'none', fontWeight: 600 }}>Voir tout</Link>
           </div>
-          <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: '14px' }}>
-            <p style={{ fontSize: 9, color: t.sub, textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>
-              {showEmoji ? '🛍️ ' : ''}Panier moy.
-            </p>
-            <p style={{ fontSize: 22, fontWeight: 800, color: t.text, letterSpacing: -1 }}>
-              {stats.livrees > 0 ? fmt(Math.round(stats.ca / stats.livrees)) : '0'}
-            </p>
-            <p style={{ fontSize: 9, color: t.sub, marginTop: 4 }}>FCFA/commande</p>
+          {recentCmds.length === 0 ? (
+            <div style={{ padding: '32px 18px', textAlign: 'center' }}>
+              <p style={{ fontSize: 32, marginBottom: 8 }}>📦</p>
+              <p style={{ fontSize: 14, color: '#C0C0C0' }}>Aucune commande sur cette période</p>
+            </div>
+          ) : recentCmds.map((c: any, i: number) => {
+            const cfg = STATUT_CFG[c.statut] || STATUT_CFG['en_attente']
+            const nom = c.client_nom || c.client_tel || 'Client'
+            return (
+              <div key={c.id} className="cmd-row" style={{ padding: '12px 18px', borderBottom: i < recentCmds.length - 1 ? '1px solid #F5F5F5' : 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: cfg.color, flexShrink: 0 }}>
+                  {nom.slice(0, 2).toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nom}</p>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.bg, color: cfg.color }}>{STATUT_LABEL[c.statut] || c.statut}</span>
+                    {c.zone_nom && <span style={{ fontSize: 10, color: '#C0C0C0' }}>📍 {c.zone_nom}</span>}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: c.statut === 'livre' ? '#16A34A' : '#1A1A1A' }}>{fmtFull(c.total_vente || 0)} F</p>
+                  {c.statut === 'livre' && c.benefice > 0 && <p style={{ fontSize: 10, color: '#16A34A', fontWeight: 600 }}>+{fmtFull(c.benefice)} F</p>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* NAVIGATION RAPIDE */}
+        <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #F0F0F0', padding: '16px 18px', boxShadow: '0 1px 8px rgba(0,0,0,.05)' }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 14 }}>Navigation</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
+            {[
+              { href: '/dashboard/commandes', icon: '📦', label: 'Commandes' },
+              { href: '/dashboard/produits', icon: '🛍️', label: 'Produits' },
+              { href: '/dashboard/rapports', icon: '📊', label: 'Rapports' },
+              { href: '/dashboard/factures', icon: '🧾', label: 'Factures' },
+              { href: '/dashboard/stock', icon: '🏪', label: 'Stock' },
+              { href: '/dashboard/livraisons', icon: '🚚', label: 'Livraisons' },
+              { href: '/dashboard/import', icon: '🔄', label: 'Sync Sheet' },
+              { href: '/dashboard/flex', icon: '📈', label: 'Mes Stats' },
+            ].map(m => (
+              <Link key={m.href} href={m.href} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 4px', borderRadius: 14, background: '#F9F9F9', textDecoration: 'none', transition: 'background .15s' }}>
+                <span style={{ fontSize: 22 }}>{m.icon}</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: '#555', textAlign: 'center', lineHeight: 1.3 }}>{m.label}</span>
+              </Link>
+            ))}
           </div>
         </div>
 
-        {/* Top produit */}
-        {stats.topProduit && (
-          <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 20 }}>{showEmoji ? '🏆' : '★'}</span>
-            <div>
-              <p style={{ fontSize: 9, color: t.sub, textTransform: 'uppercase', letterSpacing: '.08em' }}>Top produit</p>
-              <p style={{ fontSize: 13, fontWeight: 700, color: t.text, marginTop: 2 }}>{stats.topProduit}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Footer */}
-        {showLogo && (
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6, paddingTop: 12, borderTop: `1px solid ${t.border}` }}>
-            <div style={{ width: 20, height: 20, borderRadius: 6, background: t.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M3 5L12 3L21 5L19 15L12 20L5 15Z" stroke="white" strokeWidth="2" strokeLinejoin="round"/></svg>
-            </div>
-            <span style={{ fontSize: 11, color: t.sub, fontWeight: 600 }}>Propulsé par Dropzi</span>
-          </div>
-        )}
       </div>
-
-      {/* Bouton télécharger */}
-      <button onClick={takeScreenshot} disabled={copying || loading}
-        style={{ width: '100%', background: copying ? '#ccc' : 'linear-gradient(135deg,#7F77DD,#534AB7)', color: '#fff', border: 'none', borderRadius: 16, padding: '16px', fontSize: 16, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 24px rgba(127,119,221,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-        {copying ? (
-          <>
-            <span style={{ width: 18, height: 18, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin .6s linear infinite' }} />
-            Génération...
-          </>
-        ) : (
-          <>📸 Télécharger l'image</>
-        )}
-      </button>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-
-      <p style={{ textAlign: 'center', fontSize: 12, color: '#ABABAB', marginTop: 10 }}>
-        Partage sur WhatsApp, Instagram, TikTok 🔥
-      </p>
-    </div>
+    </>
   )
 }
