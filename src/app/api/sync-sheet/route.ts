@@ -96,30 +96,27 @@ async function syncUser(config: any): Promise<number> {
     date: headers.findIndex((h: string) => h.includes('date')),
   }
 
-  const derniereDateStr = config.derniere_date_commande
-  const derniereDate = derniereDateStr ? new Date(derniereDateStr) : null
-
-  // Récupérer produits et zones
-  const [{ data: produits }, { data: zones }] = await Promise.all([
+  // Récupérer produits, zones ET commandes existantes pour anti-doublon
+  const [{ data: produits }, { data: zones }, { data: existingCmds }] = await Promise.all([
     supabase.from('produits').select('*').eq('user_id', userId).eq('actif', true),
     supabase.from('zones').select('*').eq('user_id', userId),
+    supabase.from('commandes').select('notes').eq('user_id', userId).like('notes', 'Sync auto Easy Sell%').limit(1000),
   ])
+
+  // Set des empreintes déjà importées
+  const existingNotes: Set<string> = new Set((existingCmds || []).map((c: any) => c.notes || ''))
 
   const zoneId = config.zone_id || zones?.[0]?.id || null
   const zone = zones?.find((z: any) => z.id === zoneId)
   const coutLivraison = zone?.cout_livraison || 0
 
   let imported = 0
-  let newLatestDate: Date | null = derniereDate
 
-  const maxRows = Math.min(lines.length, 21) // Max 20 nouvelles commandes par sync
+  const maxRows = Math.min(lines.length, 21)
   for (let i = 1; i < maxRows; i++) {
     const cols = lines[i].split(',').map((c: string) => c.replace(/"/g, '').trim())
     const dateStr = cols[idx.date] || ''
-    const rowDate = dateStr ? new Date(dateStr) : null
 
-    // Ignorer les lignes sans date ou déjà importées
-    if (rowDate && derniereDate && rowDate <= derniereDate) continue
     if (!cols[idx.name] && !cols[idx.phone]) continue
 
     const fullName = cols[idx.name] || ''
@@ -154,6 +151,11 @@ async function syncUser(config: any): Promise<number> {
       )
       if (match) { produitId = match.id; coutAchat = match.cout_achat }
 
+      // Anti-doublon : vérifier si cette commande a déjà été importée
+      const fingerprint = `Sync auto Easy Sell — ${dateStr} — ${phone} — ${productName}`
+      if (existingNotes.has(fingerprint)) continue
+      existingNotes.add(fingerprint)
+
       // Vérifier limite commandes avant insertion
       const planOk = await supabase.rpc('check_plan_limit', { uid: userId, resource: 'commandes' })
       if (!planOk.data) {
@@ -172,9 +174,6 @@ async function syncUser(config: any): Promise<number> {
 
       // Créer commande
       // Empreinte unique pour éviter les doublons
-      const fingerprint = `Sync auto Easy Sell — ${dateStr} — ${phone} — ${productName}`
-      if (existingNotes.has(fingerprint)) continue
-
       const { data: commande } = await supabase.from('commandes').insert({
         user_id: userId,
         client_id: clientId,
