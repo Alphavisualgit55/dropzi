@@ -96,15 +96,14 @@ async function syncUser(config: any): Promise<number> {
     date: headers.findIndex((h: string) => h.includes('date')),
   }
 
-  // Récupérer produits, zones ET commandes existantes pour anti-doublon
-  const [{ data: produits }, { data: zones }, { data: existingCmds }] = await Promise.all([
+  // Récupérer produits et zones
+  const [{ data: produits }, { data: zones }] = await Promise.all([
     supabase.from('produits').select('*').eq('user_id', userId).eq('actif', true),
     supabase.from('zones').select('*').eq('user_id', userId),
-    supabase.from('commandes').select('notes').eq('user_id', userId).like('notes', 'Sync auto Easy Sell%').limit(1000),
   ])
 
-  // Set des empreintes déjà importées
-  const existingNotes: Set<string> = new Set((existingCmds || []).map((c: any) => c.notes || ''))
+  // Date de la dernière sync réussie — on n'importe que les commandes après cette date
+  const derniereSync = config.derniere_sync ? new Date(config.derniere_sync) : null
 
   const zoneId = config.zone_id || zones?.[0]?.id || null
   const zone = zones?.find((z: any) => z.id === zoneId)
@@ -151,10 +150,9 @@ async function syncUser(config: any): Promise<number> {
       )
       if (match) { produitId = match.id; coutAchat = match.cout_achat }
 
-      // Anti-doublon : vérifier si cette commande a déjà été importée
-      const fingerprint = `Sync auto Easy Sell — ${dateStr} — ${phone} — ${productName}`
-      if (existingNotes.has(fingerprint)) continue
-      existingNotes.add(fingerprint)
+      // Ignorer les commandes antérieures à la dernière sync
+      const rowDate = dateStr ? new Date(dateStr) : null
+      if (derniereSync && rowDate && rowDate <= derniereSync) continue
 
       // Vérifier limite commandes avant insertion
       const planOk = await supabase.rpc('check_plan_limit', { uid: userId, resource: 'commandes' })
@@ -180,7 +178,7 @@ async function syncUser(config: any): Promise<number> {
         zone_id: zoneId,
         statut: 'en_attente',
         cout_livraison: coutLivraison,
-        notes: fingerprint,
+        notes: `Sync auto Easy Sell — ${dateStr}`,
       }).select().single()
 
       if (commande) {
