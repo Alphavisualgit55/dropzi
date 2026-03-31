@@ -95,16 +95,19 @@ export default function CommandesPage() {
 
   async function delSelected() {
     if (selected.length === 0) return
-    if (!confirm(`Supprimer ${selected.length} commande(s) ?`)) return
+    if (!confirm(`Supprimer ${selected.length} commande(s) ? Cette action est irréversible.`)) return
     setDeleting(true)
     try {
-      // Supprimer les items d'abord
-      for (const id of selected) {
-        await supabase.from('commande_items').delete().eq('commande_id', id)
-        await supabase.from('commandes').delete().eq('id', id)
+      // Supprimer par batch de 20 pour éviter les timeouts
+      const batchSize = 20
+      for (let i = 0; i < selected.length; i += batchSize) {
+        const batch = selected.slice(i, i + batchSize)
+        await supabase.from('commande_items').delete().in('commande_id', batch)
+        await supabase.from('commandes').delete().in('id', batch)
       }
     } catch (e) {
       console.error('Erreur suppression:', e)
+      alert('Erreur lors de la suppression. Réessaie.')
     }
     setSelected([]); setSelectMode(false); setDeleting(false); load()
   }
