@@ -70,7 +70,14 @@ async function syncUser(config: any): Promise<number> {
   const sheetUrl = config.sheet_url
 
   // Lire le CSV
-  const res = await fetch(sheetUrl)
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 8000)
+  let res: Response
+  try {
+    res = await fetch(sheetUrl, { signal: controller.signal, cache: 'no-store' })
+  } finally {
+    clearTimeout(timeout)
+  }
   if (!res.ok) throw new Error('Impossible de lire le Google Sheet')
   const text = await res.text()
 
@@ -105,7 +112,8 @@ async function syncUser(config: any): Promise<number> {
   let imported = 0
   let newLatestDate: Date | null = derniereDate
 
-  for (let i = 1; i < lines.length; i++) {
+  const maxRows = Math.min(lines.length, 21) // Max 20 nouvelles commandes par sync
+  for (let i = 1; i < maxRows; i++) {
     const cols = lines[i].split(',').map((c: string) => c.replace(/"/g, '').trim())
     const dateStr = cols[idx.date] || ''
     const rowDate = dateStr ? new Date(dateStr) : null
