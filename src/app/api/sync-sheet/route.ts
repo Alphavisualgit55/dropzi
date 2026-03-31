@@ -171,13 +171,17 @@ async function syncUser(config: any): Promise<number> {
       }
 
       // Créer commande
+      // Empreinte unique pour éviter les doublons
+      const fingerprint = `Sync auto Easy Sell — ${dateStr} — ${phone} — ${productName}`
+      if (existingNotes.has(fingerprint)) continue
+
       const { data: commande } = await supabase.from('commandes').insert({
         user_id: userId,
         client_id: clientId,
         zone_id: zoneId,
         statut: 'en_attente',
         cout_livraison: coutLivraison,
-        notes: `Sync auto Easy Sell — ${dateStr}`,
+        notes: fingerprint,
       }).select().single()
 
       if (commande) {
@@ -189,9 +193,7 @@ async function syncUser(config: any): Promise<number> {
           cout_unitaire: coutAchat,
         })
         imported++
-        if (rowDate && (!newLatestDate || rowDate > newLatestDate)) {
-          newLatestDate = rowDate
-        }
+
       }
     } catch (e) {
       console.error('Erreur import ligne:', e)
@@ -202,7 +204,7 @@ async function syncUser(config: any): Promise<number> {
   if (imported > 0 || true) {
     await supabase.from('sync_config').update({
       derniere_sync: new Date().toISOString(),
-      derniere_date_commande: newLatestDate?.toISOString() || config.derniere_date_commande,
+      derniere_date_commande: new Date().toISOString(),
       nb_importees: (config.nb_importees || 0) + imported,
       updated_at: new Date().toISOString(),
     }).eq('id', config.id)
