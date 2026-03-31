@@ -152,7 +152,12 @@ async function syncUser(config: any): Promise<number> {
 
       // Ignorer les commandes antérieures à la dernière sync
       const rowDate = dateStr ? new Date(dateStr) : null
-      if (derniereSync && rowDate && rowDate <= derniereSync) continue
+      // Si pas de date dans le sheet → utiliser numéro de ligne comme identifiant unique
+      if (derniereSync) {
+        if (rowDate && rowDate <= derniereSync) continue
+        // Si pas de date ET on a déjà syncé → ignorer (évite les réimportations sans date)
+        if (!rowDate && config.nb_importees > 0) continue
+      }
 
       // Vérifier limite commandes avant insertion
       const planOk = await supabase.rpc('check_plan_limit', { uid: userId, resource: 'commandes' })
