@@ -1,107 +1,91 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import WizardOnboarding from '@/components/WizardOnboarding'
 import BackgroundSync from '@/components/BackgroundSync'
 
-const nav = [
-  { href: '/dashboard', label: 'Accueil', icon: '🏠' },
-  { href: '/dashboard/commandes', label: 'Commandes', icon: '📦' },
-  { href: '/dashboard/produits', label: 'Produits', icon: '🛍️' },
-  { href: '/dashboard/stock', label: 'Stock', icon: '🏪' },
-  { href: '/dashboard/livraisons', label: 'Livraisons', icon: '🚚' },
-  { href: '/dashboard/rapports', label: 'Rapports', icon: '📊' },
-  { href: '/dashboard/factures', label: 'Factures', icon: '🧾' },
-  { href: '/dashboard/import', label: 'Import Sheet', icon: '📥' },
-  { href: '/dashboard/import-produits', label: 'Import Produits', icon: '🛍️' },
-  { href: '/dashboard/abonnement', label: 'Abonnement', icon: '💳' },
-  { href: '/dashboard/affiliation', label: 'Affiliation', icon: '🤝' },
-  { href: '/dashboard/flex', label: 'Mes Stats', icon: '📈' },
+const NAV = [
+  { href: '/dashboard',                  label: 'Accueil',        icon: '🏠' },
+  { href: '/dashboard/commandes',        label: 'Commandes',      icon: '📦' },
+  { href: '/dashboard/produits',         label: 'Produits',       icon: '🛍️' },
+  { href: '/dashboard/stock',            label: 'Stock',          icon: '🏪' },
+  { href: '/dashboard/livraisons',       label: 'Livraisons',     icon: '🚚' },
+  { href: '/dashboard/rapports',         label: 'Rapports',       icon: '📊' },
+  { href: '/dashboard/factures',         label: 'Factures',       icon: '🧾' },
+  { href: '/dashboard/import',           label: 'Sync Shopify',   icon: '⚡' },
+  { href: '/dashboard/import-produits',  label: 'Import Produits',icon: '📥' },
+  { href: '/dashboard/flex',             label: 'Mes Stats',      icon: '📈' },
+  { href: '/dashboard/affiliation',      label: 'Affiliation',    icon: '🤝' },
+  { href: '/dashboard/abonnement',       label: 'Abonnement',     icon: '💳' },
+  { href: '/dashboard/parametres',       label: 'Paramètres',     icon: '⚙️' },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
+  const scrollRef = useRef<HTMLDivElement>(null)
   const [boutique, setBoutique] = useState('Dropzi')
-  const [menuOpen, setMenuOpen] = useState(false)
   const [notifs, setNotifs] = useState<any[]>([])
   const [showNotifs, setShowNotifs] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
-  const [toasts, setToasts] = useState<any[]>([])
-  const prevCount = useState<number>(0)
+  const [plan, setPlan] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
-      setUserId(user.id)
-      supabase.from('profiles').select('nom_boutique, plan, plan_expires').eq('id', user.id).single()
-        .then(({ data }) => {
-          if (data?.nom_boutique) setBoutique(data.nom_boutique)
-          // Vérifier abonnement actif
-          const planValide = data?.plan && !['aucun','gratuit',null,''].includes(data.plan)
-          const nonExpire = data?.plan_expires ? new Date(data.plan_expires) > new Date() : false
-          if (!planValide || !nonExpire) {
-            // Autoriser accès à la page abonnement seulement
-            if (!window.location.pathname.includes('/abonnement')) {
-              router.push('/dashboard/abonnement')
-            }
-          }
-        })
-      // Charger notifications
-      loadNotifs(user.id)
-      // Realtime notifications
-      const ch = supabase.channel('notifs-' + user.id)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications_user', filter: `user_id=eq.${user.id}` },
-          (payload: any) => {
-            loadNotifs(user.id)
-            // Afficher popup toast
-            const n = payload.new
-            if (n) {
-              const toast = { id: Date.now(), titre: n.titre, message: n.message, type: n.type || 'info' }
-              setToasts(t => [...t, toast])
-              setTimeout(() => setToasts(t => t.filter(x => x.id !== toast.id)), 5000)
-            }
-          })
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'commandes' },
-          () => {
-            const toast = { id: Date.now(), titre: '📦 Nouvelle commande !', message: "Une nouvelle commande vient d'arriver.", type: 'success' }
-            setToasts(t => [...t, toast])
-            setTimeout(() => setToasts(t => t.filter(x => x.id !== toast.id)), 5000)
-          })
-        .subscribe()
-      return () => { supabase.removeChannel(ch) }
-    })
-  }, [])
 
-  useEffect(() => {
-    const onToast = (e: any) => {
-      const t = { id: Date.now(), ...e.detail }
-      setToasts(ts => [...ts, t])
-      setTimeout(() => setToasts(ts => ts.filter(x => x.id !== t.id)), 5000)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('nom_boutique, plan, plan_expires')
+        .eq('id', user.id)
+        .single()
+
+      if (profile) {
+        setBoutique(profile.nom_boutique || 'Ma Boutique')
+        const isActif = profile.plan && profile.plan !== 'aucun' && profile.plan_expires && new Date(profile.plan_expires) > new Date()
+        setPlan(isActif ? profile.plan : null)
+      }
+
+      const { data: n } = await supabase
+        .from('notifications_user')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('lu', false)
+        .order('created_at', { ascending: false })
+        .limit(10)
+      setNotifs(n || [])
+      setLoading(false)
     }
-    window.addEventListener('dropzi:toast', onToast)
-    return () => window.removeEventListener('dropzi:toast', onToast)
+    init()
+
+    // Realtime notifications
+    const ch = supabase
+      .channel('notifs')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications_user' }, payload => {
+        setNotifs(prev => [payload.new as any, ...prev])
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
   }, [])
 
-  async function loadNotifs(uid: string) {
-    const { data } = await supabase.from('notifications_user').select('*')
-      .eq('user_id', uid).eq('lu', false).order('created_at', { ascending: false }).limit(10)
-    setNotifs(data || [])
-  }
+  // Scroll actif vers le centre
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const active = el.querySelector('[data-active="true"]') as HTMLElement
+    if (active) {
+      const offset = active.offsetLeft - el.offsetWidth / 2 + active.offsetWidth / 2
+      el.scrollTo({ left: offset, behavior: 'smooth' })
+    }
+  }, [pathname])
 
   async function marquerLu(id: string) {
     await supabase.from('notifications_user').update({ lu: true }).eq('id', id)
-    if (userId) loadNotifs(userId)
-  }
-
-  async function tousLus() {
-    if (!userId) return
-    await supabase.from('notifications_user').update({ lu: true }).eq('user_id', userId).eq('lu', false)
-    setNotifs([])
-    setShowNotifs(false)
+    setNotifs(prev => prev.filter(n => n.id !== id))
   }
 
   async function logout() {
@@ -109,159 +93,140 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/login')
   }
 
-  // Mobile bottom nav — show only 5 most important
-  const mobileNav = [
-    { href: '/dashboard', icon: '🏠' },
-    { href: '/dashboard/commandes', icon: '📦' },
-    { href: '/dashboard/rapports', icon: '📊' },
-    { href: '/dashboard/factures', icon: '🧾' },
-    { href: '/dashboard/stock', icon: '🏪' },
-  ]
+  const PLAN_COLOR: Record<string, string> = { starter: '#F59E0B', business: '#7F77DD', elite: '#1D9E75' }
+
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: '#F7F7FA', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ width: 32, height: 32, border: '3px solid #7F77DD', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .8s linear infinite' }} />
+    </div>
+  )
 
   return (
-    <div className="flex min-h-screen bg-[#F8F8FC]">
-      {/* Sidebar desktop */}
-      <aside className="hidden md:flex flex-col w-60 bg-[#0C0C1E] min-h-screen p-4">
-        <div className="flex items-center gap-2 px-2 py-3 mb-6">
-          <div className="w-9 h-9 rounded-xl bg-[#7F77DD] flex items-center justify-center flex-shrink-0"
-            style={{ boxShadow: '0 0 16px rgba(127,119,221,.4)' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M3 5L12 3L21 5L19 15L12 20L5 15Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
-              <path d="M3 5L21 5" stroke="white" strokeWidth="1.5"/>
-            </svg>
-          </div>
-          <span className="text-white font-bold text-xl" style={{ fontFamily: 'Georgia, serif', letterSpacing: -0.5 }}>Dropzi</span>
-        </div>
+    <div style={{ minHeight: '100vh', background: '#F7F7FA', fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif' }}>
+      <style>{`
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+        *{box-sizing:border-box;}
+        body{margin:0;}
 
-        <nav className="flex-1 space-y-0.5">
-          {nav.map(item => (
-            <Link key={item.href} href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
-                pathname === item.href
-                  ? 'bg-[#7F77DD] text-white font-medium shadow-sm'
-                  : 'text-gray-400 hover:bg-white/8 hover:text-white'
-              }`}
-              style={pathname === item.href ? { boxShadow: '0 0 12px rgba(127,119,221,.3)' } : {}}>
-              <span className="text-base w-5 text-center">{item.icon}</span>
-              {item.label}
-              {item.href === '/dashboard/rapports' && (
-                <span className="ml-auto bg-[#25D366] text-white text-xs px-1.5 py-0.5 rounded-full font-medium">WA</span>
-              )}
-            </Link>
-          ))}
-        </nav>
+        /* Scrollbar cachée sur le menu */
+        .nav-scroll::-webkit-scrollbar{display:none;}
+        .nav-scroll{-ms-overflow-style:none;scrollbar-width:none;}
 
-        <div className="border-t border-white/10 pt-4 mt-4 space-y-1">
-          {/* Cloche notifications desktop */}
-          <button onClick={() => setShowNotifs(!showNotifs)}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-400 hover:bg-white/8 hover:text-white transition-all"
-            style={{ position: 'relative', border: 'none', cursor: 'pointer', background: showNotifs ? 'rgba(127,119,221,.12)' : 'transparent', color: showNotifs ? '#7F77DD' : undefined }}>
-            <span className="text-base w-5 text-center" style={{ position: 'relative', display: 'inline-block' }}>
-              🔔
-              {notifs.length > 0 && (
-                <span style={{ position: 'absolute', top: -4, right: -4, width: 14, height: 14, background: '#E24B4A', borderRadius: '50%', fontSize: 8, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{notifs.length}</span>
-              )}
-            </span>
-            Notifications
-            {notifs.length > 0 && (
-              <span style={{ marginLeft: 'auto', background: '#E24B4A', color: '#fff', fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 20 }}>{notifs.length}</span>
-            )}
-          </button>
-          <Link href="/dashboard/parametres"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-400 hover:bg-white/8 hover:text-white transition-all">
-            <span className="text-base w-5 text-center">⚙️</span> Paramètres
-          </Link>
-          <p className="text-gray-600 text-xs px-3 truncate">{boutique}</p>
-          <button onClick={logout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-white/8 hover:text-white transition-all">
-            <span className="text-base w-5 text-center">🚪</span> Déconnexion
-          </button>
-        </div>
-      </aside>
+        /* Hover items nav */
+        .nav-item{transition:all .15s;white-space:nowrap;text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 14px;border-radius:12px;cursor:pointer;flex-shrink:0;}
+        .nav-item:hover{background:rgba(127,119,221,.08);}
 
-      {/* Main content */}
-      <main className="flex-1 flex flex-col min-w-0">
-        {/* Mobile header */}
-        <div className="md:hidden flex items-center justify-between px-4 py-3 bg-[#0C0C1E] border-b border-white/10">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-[#7F77DD] flex items-center justify-center">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M3 5L12 3L21 5L19 15L12 20L5 15Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
-              </svg>
+        /* Notif overlay click outside */
+        .notif-panel{animation:slideDown .2s ease;}
+      `}</style>
+
+      {/* ── HEADER ── */}
+      <header style={{ position: 'sticky', top: 0, zIndex: 50, background: '#fff', borderBottom: '1px solid #F0F0F0', boxShadow: '0 1px 8px rgba(0,0,0,.06)' }}>
+
+        {/* Ligne 1 : Logo + boutique + actions */}
+        <div style={{ display: 'flex', alignItems: 'center', padding: '0 16px', height: 52, gap: 12 }}>
+          {/* Logo */}
+          <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', flexShrink: 0 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 9, background: 'linear-gradient(135deg,#7F77DD,#534AB7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 5L12 3L21 5L19 15L12 20L5 15Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/><path d="M3 5L21 5" stroke="white" strokeWidth="1.5"/></svg>
             </div>
-            <span className="text-white font-bold text-lg" style={{ fontFamily: 'Georgia,serif' }}>Dropzi</span>
+            <span style={{ fontWeight: 800, fontSize: 17, color: '#0C0C1E', letterSpacing: -.4 }}>Dropzi</span>
+          </Link>
+
+          {/* Boutique + plan */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#0C0C1E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{boutique}</p>
+            {plan ? (
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 20, background: (PLAN_COLOR[plan] || '#888') + '18', color: PLAN_COLOR[plan] || '#888' }}>
+                {plan.toUpperCase()}
+              </span>
+            ) : (
+              <Link href="/dashboard/abonnement" style={{ fontSize: 10, fontWeight: 700, color: '#E24B4A', textDecoration: 'none', background: '#FEF2F2', padding: '1px 7px', borderRadius: 20 }}>
+                ⚠️ Pas d'abonnement
+              </Link>
+            )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span className="text-gray-400 text-sm truncate max-w-32">{boutique}</span>
-            <button onClick={() => setShowNotifs(!showNotifs)} style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+
+          {/* Notifs */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <button onClick={() => setShowNotifs(v => !v)}
+              style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, background: showNotifs ? '#F0F0F8' : 'none' }}>
               <span style={{ fontSize: 20 }}>🔔</span>
-              {notifs.length > 0 && <span style={{ position: 'absolute', top: 0, right: 0, width: 16, height: 16, background: '#E24B4A', borderRadius: '50%', fontSize: 9, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{notifs.length}</span>}
+              {notifs.length > 0 && (
+                <div style={{ position: 'absolute', top: 4, right: 4, width: 18, height: 18, background: '#E24B4A', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff' }}>
+                  <span style={{ fontSize: 9, fontWeight: 800, color: '#fff' }}>{notifs.length > 9 ? '9+' : notifs.length}</span>
+                </div>
+              )}
             </button>
+
+            {showNotifs && (
+              <>
+                <div onClick={() => setShowNotifs(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+                <div className="notif-panel" style={{ position: 'absolute', top: '110%', right: 0, width: 300, background: '#fff', border: '1px solid #EBEBEB', borderRadius: 18, boxShadow: '0 8px 32px rgba(0,0,0,.12)', zIndex: 50, overflow: 'hidden' }}>
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid #F5F5F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#0C0C1E' }}>Notifications</p>
+                    {notifs.length > 0 && (
+                      <button onClick={() => { notifs.forEach(n => marquerLu(n.id)) }}
+                        style={{ fontSize: 11, color: '#7F77DD', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+                        Tout marquer lu
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                    {notifs.length === 0 ? (
+                      <div style={{ padding: '24px 16px', textAlign: 'center' }}>
+                        <p style={{ fontSize: 24, marginBottom: 6 }}>🔔</p>
+                        <p style={{ fontSize: 13, color: '#ABABAB' }}>Aucune notification</p>
+                      </div>
+                    ) : notifs.map(n => (
+                      <div key={n.id} style={{ padding: '12px 16px', borderBottom: '1px solid #F5F5F5', display: 'flex', gap: 10 }}>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: '#0C0C1E', marginBottom: 3 }}>{n.titre}</p>
+                          <p style={{ fontSize: 12, color: '#888', lineHeight: 1.4 }}>{n.message}</p>
+                          <p style={{ fontSize: 10, color: '#C0C0C0', marginTop: 4 }}>{new Date(n.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                        <button onClick={() => marquerLu(n.id)}
+                          style={{ background: 'none', border: 'none', color: '#C0C0C0', cursor: 'pointer', fontSize: 16, flexShrink: 0, alignSelf: 'flex-start' }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
+
+          {/* Déconnexion */}
+          <button onClick={logout}
+            style={{ background: 'none', border: '1px solid #EBEBEB', borderRadius: 10, width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 16, flexShrink: 0 }}>
+            🚪
+          </button>
         </div>
 
-        <div className="flex-1 p-4 md:p-6 pb-24 md:pb-6">
-          {/* Panneau notifications */}
-          {showNotifs && (
-            <div style={{ position: 'fixed', top: 16, right: 16, width: 320, maxHeight: '80vh', overflowY: 'auto', background: '#fff', borderRadius: 16, boxShadow: '0 8px 40px rgba(0,0,0,.2)', border: '1px solid #e8e8f0', zIndex: 300 }}>
-              <div style={{ padding: '14px 16px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 700, fontSize: 14 }}>🔔 Notifications ({notifs.length})</span>
-                {notifs.length > 0 && <button onClick={tousLus} style={{ fontSize: 12, color: '#7F77DD', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}>Tout marquer lu</button>}
-              </div>
-              {notifs.length === 0 ? (
-                <div style={{ padding: '24px 16px', textAlign: 'center', color: '#aaa', fontSize: 13 }}>Aucune notification</div>
-              ) : notifs.map((n: any) => (
-                <div key={n.id} style={{ padding: '12px 16px', borderBottom: '1px solid #f8f8f8', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 18, flexShrink: 0 }}>{n.type === 'success' ? '✅' : n.type === 'warning' ? '⚠️' : n.type === 'error' ? '❌' : 'ℹ️'}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontWeight: 600, fontSize: 13, margin: '0 0 3px', color: '#1a1a2e' }}>{n.titre}</p>
-                    <p style={{ fontSize: 12, color: '#666', margin: '0 0 4px', lineHeight: 1.5 }}>{n.message}</p>
-                    <p style={{ fontSize: 10, color: '#bbb', margin: 0 }}>{new Date(n.created_at).toLocaleString('fr-FR')}</p>
-                  </div>
-                  <button onClick={() => marquerLu(n.id)} style={{ background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', fontSize: 14, flexShrink: 0, padding: 2 }}>✕</button>
-                </div>
-              ))}
-            </div>
-          )}
-          {/* TOASTS POPUP */}
-          {toasts.length > 0 && (
-            <div style={{ position: 'fixed', top: 80, right: 16, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 340 }}>
-              <style>{`@keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}@keyframes slideOut{from{transform:translateX(0);opacity:1}to{transform:translateX(120%);opacity:0}}`}</style>
-              {toasts.map(t => (
-                <div key={t.id} style={{ background: '#0C0C1E', border: `1px solid ${t.type === 'success' ? 'rgba(29,158,117,.4)' : t.type === 'error' ? 'rgba(226,75,74,.4)' : 'rgba(127,119,221,.4)'}`, borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12, boxShadow: '0 8px 32px rgba(0,0,0,.4)', animation: 'slideIn .3s ease' }}>
-                  <span style={{ fontSize: 22, flexShrink: 0 }}>{t.type === 'success' ? '✅' : t.type === 'error' ? '❌' : t.type === 'warning' ? '⚠️' : '🔔'}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: '#fff', margin: 0, marginBottom: 3 }}>{t.titre}</p>
-                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', margin: 0, lineHeight: 1.5 }}>{t.message}</p>
-                  </div>
-                  <button onClick={() => setToasts(ts => ts.filter(x => x.id !== t.id))} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.3)', cursor: 'pointer', fontSize: 16, flexShrink: 0, padding: 0 }}>✕</button>
-                </div>
-              ))}
-            </div>
-          )}
-          {children}
+        {/* Ligne 2 : Menu horizontal scrollable */}
+        <div ref={scrollRef} className="nav-scroll"
+          style={{ display: 'flex', overflowX: 'auto', padding: '4px 8px 6px', gap: 2, borderTop: '1px solid #F5F5F5' }}>
+          {NAV.map(item => {
+            const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+            return (
+              <Link key={item.href} href={item.href} data-active={active} className="nav-item"
+                style={{ color: active ? '#7F77DD' : '#888', background: active ? '#EEEDFE' : 'transparent', fontWeight: active ? 700 : 500 }}>
+                <span style={{ fontSize: 18, lineHeight: 1 }}>{item.icon}</span>
+                <span style={{ fontSize: 10, letterSpacing: -.1 }}>{item.label}</span>
+              </Link>
+            )
+          })}
         </div>
+      </header>
+
+      {/* ── CONTENU ── */}
+      <main style={{ padding: '16px 16px 80px', maxWidth: 800, margin: '0 auto' }}>
+        <WizardOnboarding />
+        <BackgroundSync />
+        {children}
       </main>
-
-      <WizardOnboarding />
-      <BackgroundSync />
-      {/* Bottom nav mobile */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0C0C1E] border-t border-white/10 flex z-50">
-        {mobileNav.map(item => (
-          <Link key={item.href} href={item.href}
-            className={`flex-1 flex flex-col items-center py-3 gap-0.5 transition-colors relative ${
-              pathname === item.href ? 'text-[#7F77DD]' : 'text-gray-500'
-            }`}>
-            <span className="text-xl">{item.icon}</span>
-            {item.href === '/dashboard/rapports' && (
-              <span className="absolute top-2 right-2 w-2 h-2 bg-[#25D366] rounded-full" />
-            )}
-            {pathname === item.href && (
-              <span className="w-1 h-1 rounded-full bg-[#7F77DD]" />
-            )}
-          </Link>
-        ))}
-      </nav>
     </div>
   )
 }
