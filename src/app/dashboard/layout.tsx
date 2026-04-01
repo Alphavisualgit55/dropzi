@@ -153,7 +153,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Notifs */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <button onClick={() => setShowNotifs(v => !v)}
-              style={{ position: 'relative', background: showNotifs ? '#F0F0F8' : 'none', border: 'none', cursor: 'pointer', width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10 }}>
+              style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, background: showNotifs ? '#F0F0F8' : 'none' }}>
               <span style={{ fontSize: 20 }}>🔔</span>
               {notifs.length > 0 && (
                 <div style={{ position: 'absolute', top: 4, right: 4, width: 18, height: 18, background: '#E24B4A', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff' }}>
