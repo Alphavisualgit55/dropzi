@@ -50,10 +50,9 @@ function LoginContent() {
         // Trouver l'affilié et créer le lien filleul
         const { data: affilie } = await supabase.from('affilies').select('id').eq('code', finalRef).single()
         if (affilie) {
-          await supabase.from('filleuls').insert({ affilie_id: affilie.id, filleul_user_id: data.user.id }).catch(() => {})
+          try { await supabase.from('filleuls').insert({ affilie_id: affilie.id, filleul_user_id: data.user.id }) } catch (_) {}
           await supabase.from('profiles').update({ affilie_id: affilie.id }).eq('id', data.user.id)
-          // Incrémenter le compteur de filleuls
-          await supabase.rpc('increment_filleuls', { affilie_id: affilie.id }).catch(() => {})
+          try { await supabase.rpc('increment_filleuls', { affilie_id: affilie.id }) } catch (_) {}
         }
         localStorage.removeItem('dropzi_ref')
       }
