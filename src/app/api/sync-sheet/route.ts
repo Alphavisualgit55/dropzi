@@ -102,28 +102,61 @@ async function syncUser(config: any): Promise<number> {
     supabase.from('zones').select('*').eq('user_id', userId),
   ])
 
-  // Date de la dernière sync réussie — on n'importe que les commandes après cette date
-  const derniereSync = config.derniere_sync ? new Date(config.derniere_sync) : null
-
   const zoneId = config.zone_id || zones?.[0]?.id || null
   const zone = zones?.find((z: any) => z.id === zoneId)
   const coutLivraison = zone?.cout_livraison || 0
+
+  // Dernière sync pour anti-doublon basé sur le temps
+  const derniereSync = config.derniere_sync ? new Date(config.derniere_sync) : null
+
+  // Construire empreintes des commandes déjà importées (téléphone+produit+date)
+  const { data: existingNotes } = await supabase
+    .from('commandes')
+    .select('notes')
+    .eq('user_id', userId)
+    .like('notes', 'Sync auto%')
+    .limit(2000)
+  const notesSet = new Set((existingNotes || []).map((c: any) => c.notes || ''))
 
   let imported = 0
 
   const maxRows = Math.min(lines.length, 21)
   for (let i = 1; i < maxRows; i++) {
     const cols = lines[i].split(',').map((c: string) => c.replace(/"/g, '').trim())
-    const dateStr = cols[idx.date] || ''
-
-    if (!cols[idx.name] && !cols[idx.phone]) continue
 
     const fullName = cols[idx.name] || ''
     const phone = cols[idx.phone] || ''
+    if (!fullName && !phone) continue
+
     const address = cols[idx.address] || ''
     const productName = cols[idx.product] || ''
     const productPrice = parseFloat(cols[idx.price]) || 0
     const productQty = parseInt(cols[idx.qty]) || 1
+    const dateStr = cols[idx.date] || ''
+
+    // ANTI-DOUBLON : empreinte unique basée sur téléphone + produit + date
+    const fingerprint = `Sync auto — ${phone}|${productName}|${dateStr}`
+    if (notesSet.has(fingerprint)) continue
+
+    // Anti-doublon par date si disponible
+    if (derniereSync && dateStr) {
+      const rowDate = new Date(dateStr)
+      if (!isNaN(rowDate.getTime()) && rowDate <= derniereSync) continue
+    }
+
+    // Vérifier limite plan
+    const planOk = await supabase.rpc('check_plan_limit', { uid: userId, resource: 'commandes' })
+    if (!planOk.data) {
+      try {
+        await supabase.from('notifications_user').insert({
+          user_id: userId,
+          titre: '🚫 Limite de commandes atteinte',
+          message: 'Tu as atteint la limite de commandes de ton plan. Upgrade pour continuer.',
+          type: 'warning',
+        })
+      } catch (_) {}
+      break
+    }
 
     try {
       // Créer ou trouver client
@@ -141,49 +174,30 @@ async function syncUser(config: any): Promise<number> {
         }
       }
 
-      // Trouver produit
+      // Trouver produit Dropzi correspondant
       let produitId: string | null = null
       let coutAchat = 0
-      const match = produits?.find((p: any) =>
-        p.nom.toLowerCase().includes(productName.toLowerCase().slice(0, 6)) ||
-        productName.toLowerCase().includes(p.nom.toLowerCase().slice(0, 6))
-      )
-      if (match) { produitId = match.id; coutAchat = match.cout_achat }
-
-      // Ignorer les commandes antérieures à la dernière sync
-      const rowDate = dateStr ? new Date(dateStr) : null
-      // Si pas de date dans le sheet → utiliser numéro de ligne comme identifiant unique
-      if (derniereSync) {
-        if (rowDate && rowDate <= derniereSync) continue
-        // Si pas de date ET on a déjà syncé → ignorer (évite les réimportations sans date)
-        if (!rowDate && config.nb_importees > 0) continue
+      let prixVente = productPrice // Prix du sheet par défaut
+      const match = produits?.find((p: any) => {
+        const pn = p.nom.toLowerCase()
+        const qn = productName.toLowerCase()
+        return pn === qn || pn.includes(qn.slice(0, 8)) || qn.includes(pn.slice(0, 8))
+      })
+      if (match) {
+        produitId = match.id
+        coutAchat = match.cout_achat || 0
+        // Utiliser prix du sheet s'il est non nul, sinon prix du produit Dropzi
+        if (!prixVente || prixVente === 0) prixVente = match.prix_vente || 0
       }
 
-      // Vérifier limite commandes avant insertion
-      const planOk = await supabase.rpc('check_plan_limit', { uid: userId, resource: 'commandes' })
-      if (!planOk.data) {
-        console.log(`Limite commandes atteinte pour user ${userId}`)
-        // Notifier une seule fois
-        try {
-          await supabase.from('notifications_user').insert({
-            user_id: userId,
-            titre: '🚫 Limite de commandes atteinte',
-            message: 'Tu as atteint la limite de commandes de ton plan. Upgrade pour continuer.',
-            type: 'warning',
-          })
-        } catch (_) {}
-        break
-      }
-
-      // Créer commande
-      // Empreinte unique pour éviter les doublons
+      // Créer commande avec empreinte unique dans les notes
       const { data: commande } = await supabase.from('commandes').insert({
         user_id: userId,
         client_id: clientId,
         zone_id: zoneId,
         statut: 'en_attente',
         cout_livraison: coutLivraison,
-        notes: `Sync auto Easy Sell — ${dateStr}`,
+        notes: fingerprint,
       }).select().single()
 
       if (commande) {
@@ -191,36 +205,34 @@ async function syncUser(config: any): Promise<number> {
           commande_id: commande.id,
           produit_id: produitId,
           quantite: productQty,
-          prix_unitaire: productPrice,
+          prix_unitaire: prixVente,
           cout_unitaire: coutAchat,
         })
+        notesSet.add(fingerprint) // Ajouter au set local pour éviter doublons dans le même batch
         imported++
-
       }
     } catch (e) {
       console.error('Erreur import ligne:', e)
     }
   }
 
-  // Mettre à jour config
-  if (imported > 0 || true) {
-    await supabase.from('sync_config').update({
-      derniere_sync: new Date().toISOString(),
-      derniere_date_commande: new Date().toISOString(),
-      nb_importees: (config.nb_importees || 0) + imported,
-      updated_at: new Date().toISOString(),
-    }).eq('id', config.id)
+  // Mettre à jour config après sync
+  await supabase.from('sync_config').update({
+    derniere_sync: new Date().toISOString(),
+    derniere_date_commande: new Date().toISOString(),
+    nb_importees: (config.nb_importees || 0) + imported,
+    updated_at: new Date().toISOString(),
+  }).eq('id', config.id)
 
-    // Créer notification si nouvelles commandes
-    if (imported > 0) {
-      await supabase.from('notifications_user').insert({
-        user_id: userId,
-        titre: `${imported} nouvelle${imported > 1 ? 's' : ''} commande${imported > 1 ? 's' : ''} importée${imported > 1 ? 's' : ''}`,
-        message: `${imported} commande${imported > 1 ? 's' : ''} Easy Sell synchronisée${imported > 1 ? 's' : ''} automatiquement depuis Google Sheet.`,
-        type: 'success',
-        data: { imported, source: 'google_sheet' }
-      })
-    }
+  // Notification si nouvelles commandes
+  if (imported > 0) {
+    await supabase.from('notifications_user').insert({
+      user_id: userId,
+      titre: `${imported} nouvelle${imported > 1 ? 's' : ''} commande${imported > 1 ? 's' : ''} importée${imported > 1 ? 's' : ''}`,
+      message: `${imported} commande${imported > 1 ? 's' : ''} Shopify synchronisée${imported > 1 ? 's' : ''} automatiquement.`,
+      type: 'success',
+      data: { imported, source: 'shopify' }
+    })
   }
 
   return imported
