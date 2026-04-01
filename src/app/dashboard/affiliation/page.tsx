@@ -57,7 +57,6 @@ export default function AffiliationPage() {
   async function demanderRetrait() {
     if (!userId || !affilie || !montantRetrait || !numeroWave) return
     const montant = parseInt(montantRetrait)
-    if (montant < 5000) { alert('Montant minimum : 5 000 FCFA'); return }
     if (montant > affilie.solde) { alert('Solde insuffisant'); return }
     setSubmitting(true)
     const { error } = await supabase.from('retraits').insert({ affilie_id: affilie.id, user_id: userId, montant, numero_wave: numeroWave, statut: 'en_attente' })
@@ -247,7 +246,7 @@ export default function AffiliationPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ background: '#fff', borderRadius: 18, padding: '20px', border: '1px solid #F0F0F0', boxShadow: '0 1px 8px rgba(0,0,0,.04)' }}>
             <p style={{ fontSize: 15, fontWeight: 700, color: '#0C0C1E', marginBottom: 4 }}>💸 Demander un retrait</p>
-            <p style={{ fontSize: 12, color: '#ABABAB', marginBottom: 16 }}>Solde : <strong style={{ color: '#16A34A' }}>{fmt(affilie.solde)} FCFA</strong> · Minimum 5 000 FCFA</p>
+            <p style={{ fontSize: 12, color: '#ABABAB', marginBottom: 16 }}>Solde : <strong style={{ color: '#16A34A' }}>{fmt(affilie.solde)} FCFA</strong> </p>
             <div style={{ marginBottom: 12 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: '#A0A0A0', textTransform: 'uppercase', letterSpacing: '.07em', display: 'block', marginBottom: 6 }}>Montant (FCFA)</label>
               <input style={F} type="number" value={montantRetrait} onChange={e => setMontantRetrait(e.target.value)} placeholder="Ex: 10000" />
@@ -256,8 +255,8 @@ export default function AffiliationPage() {
               <label style={{ fontSize: 11, fontWeight: 700, color: '#A0A0A0', textTransform: 'uppercase', letterSpacing: '.07em', display: 'block', marginBottom: 6 }}>Numéro Wave / Orange Money</label>
               <input style={F} value={numeroWave} onChange={e => setNumeroWave(e.target.value)} placeholder="77 000 00 00" />
             </div>
-            <button className="sbt" onClick={demanderRetrait} disabled={submitting || !montantRetrait || !numeroWave || affilie.solde < 5000}
-              style={{ width: '100%', background: 'linear-gradient(135deg,#1D9E75,#16A34A)', color: '#fff', border: 'none', borderRadius: 12, padding: '13px', fontSize: 15, fontWeight: 700, opacity: affilie.solde < 5000 ? .5 : 1 }}>
+            <button className="sbt" onClick={demanderRetrait} disabled={submitting || !montantRetrait || !numeroWave || parseInt(montantRetrait) > affilie.solde}
+              style={{ width: '100%', background: 'linear-gradient(135deg,#1D9E75,#16A34A)', color: '#fff', border: 'none', borderRadius: 12, padding: '13px', fontSize: 15, fontWeight: 700 }}>
               {submitting ? '⏳ Envoi...' : '💸 Demander le retrait'}
             </button>
           </div>
