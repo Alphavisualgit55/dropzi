@@ -17,6 +17,7 @@ const nav = [
   { href: '/dashboard/import', label: 'Import Sheet', icon: '📥' },
   { href: '/dashboard/import-produits', label: 'Import Produits', icon: '🛍️' },
   { href: '/dashboard/abonnement', label: 'Abonnement', icon: '💳' },
+  { href: '/dashboard/affiliation', label: 'Affiliation', icon: '🤝' },
   { href: '/dashboard/flex', label: 'Mes Stats', icon: '📈' },
 ]
 
