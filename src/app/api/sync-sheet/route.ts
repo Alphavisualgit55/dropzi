@@ -109,14 +109,12 @@ async function syncUser(config: any): Promise<number> {
   // Dernière sync pour anti-doublon basé sur le temps
   const derniereSync = config.derniere_sync ? new Date(config.derniere_sync) : null
 
-  // Construire empreintes des commandes déjà importées (téléphone+produit+date)
-  const { data: existingNotes } = await supabase
-    .from('commandes')
-    .select('notes')
+  // Charger les empreintes depuis la table dédiée (persiste même après suppression des commandes)
+  const { data: existingFingerprints } = await supabase
+    .from('sync_imported')
+    .select('fingerprint')
     .eq('user_id', userId)
-    .like('notes', 'Sync auto%')
-    .limit(2000)
-  const notesSet = new Set((existingNotes || []).map((c: any) => c.notes || ''))
+  const notesSet = new Set((existingFingerprints || []).map((c: any) => c.fingerprint || ''))
 
   let imported = 0
 
@@ -208,7 +206,9 @@ async function syncUser(config: any): Promise<number> {
           prix_unitaire: prixVente,
           cout_unitaire: coutAchat,
         })
-        notesSet.add(fingerprint) // Ajouter au set local pour éviter doublons dans le même batch
+        // Sauvegarder l'empreinte dans la table dédiée
+        await supabase.from('sync_imported').upsert({ user_id: userId, fingerprint }, { onConflict: 'user_id,fingerprint' }).then(() => {}).catch(() => {})
+        notesSet.add(fingerprint)
         imported++
       }
     } catch (e) {
