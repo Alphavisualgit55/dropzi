@@ -213,9 +213,9 @@ export default function LandingPage() {
               style={{ background: 'linear-gradient(135deg,#7F77DD,#534AB7)', color: '#fff', borderRadius: 16, padding: '15px 36px', fontSize: 17, fontWeight: 800, boxShadow: '0 4px 28px rgba(127,119,221,.45)' }}>
               🚀 Commencer maintenant
             </Link>
-            <a href="#features" className="btn"
+            <a href="/tutoriels" className="btn"
               style={{ background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)', color: 'rgba(255,255,255,.7)', borderRadius: 16, padding: '15px 24px', fontSize: 15, fontWeight: 600 }}>
-              Voir les fonctionnalités ↓
+              🎥 Voir comment ça marche
             </a>
           </div>
 
