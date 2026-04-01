@@ -451,7 +451,7 @@ export default function LandingPage() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 5L12 3L21 5L19 15L12 20L5 15Z" stroke="white" strokeWidth="1.8" strokeLinejoin="round"/></svg>
           </div>
           <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>Dropzi</span>
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,.2)' }}>© 2025 — Tous droits réservés</span>
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,.2)' }}>© 2026 — Tous droits réservés</span>
         </div>
         <div style={{ display: 'flex', gap: 20 }}>
           {[['#features','Fonctionnalités'],['#tarifs','Tarifs'],['dropzi.io/affiliation','Affiliation'],['dropzi.io/login','Connexion']].map(([href, label]) => (
