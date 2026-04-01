@@ -207,7 +207,7 @@ async function syncUser(config: any): Promise<number> {
           cout_unitaire: coutAchat,
         })
         // Sauvegarder l'empreinte dans la table dédiée
-        await supabase.from('sync_imported').upsert({ user_id: userId, fingerprint }, { onConflict: 'user_id,fingerprint' }).then(() => {}).catch(() => {})
+        try { await supabase.from('sync_imported').upsert({ user_id: userId, fingerprint }, { onConflict: 'user_id,fingerprint' }) } catch (_) {}
         notesSet.add(fingerprint)
         imported++
       }
