@@ -6,11 +6,15 @@ import { useRouter, useSearchParams } from 'next/navigation'
 function LoginContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [nom, setNom] = useState('')
+  const [telephone, setTelephone] = useState('')
   const [isSignup, setIsSignup] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [refCode, setRefCode] = useState('')
+  const [refValid, setRefValid] = useState<boolean | null>(null)
+  const [checkingRef, setCheckingRef] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
@@ -29,11 +33,20 @@ function LoginContent() {
     }
   }, [])
 
+  async function verifierCode(code: string) {
+    if (!code || code.length < 3) { setRefValid(null); return }
+    setCheckingRef(true)
+    const { data } = await supabase.from('affilies').select('id').eq('code', code.toUpperCase()).eq('statut', 'actif').single()
+    setRefValid(!!data)
+    setCheckingRef(false)
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true); setError(''); setSuccess('')
 
     if (isSignup) {
+      if (isSignup && !nom.trim()) { setError('Le nom est requis'); setLoading(false); return }
       const { data, error: signupError } = await supabase.auth.signUp({ email, password })
       if (signupError) {
         setError(signupError.message)
@@ -41,8 +54,14 @@ function LoginContent() {
         return
       }
 
+      // Sauvegarder nom et téléphone
+      if (data.user && nom) {
+        await supabase.from('profiles').update({ nom_boutique: nom, telephone }).eq('id', data.user.id)
+      }
+
       // Associer le code parrain si présent
       const finalRef = refCode || localStorage.getItem('dropzi_ref') || ''
+      if (finalRef && refValid === false) { setError('Code de parrainage invalide'); setLoading(false); return }
       if (finalRef && data.user) {
         // Enregistrer le code parrain dans le profil
         await supabase.from('profiles').update({ parrain_code: finalRef }).eq('id', data.user.id)
@@ -103,6 +122,18 @@ function LoginContent() {
           </h2>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {isSignup && (
+              <>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#888', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>Nom complet *</label>
+                  <input required={isSignup} value={nom} onChange={e => setNom(e.target.value)} placeholder="Ex: Alpha Diagne" style={inp} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#888', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>Téléphone</label>
+                  <input type="tel" value={telephone} onChange={e => setTelephone(e.target.value)} placeholder="77 000 00 00" style={inp} />
+                </div>
+              </>
+            )}
             <div>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#888', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>Email</label>
               <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="toi@example.com" style={inp} />
@@ -116,7 +147,17 @@ function LoginContent() {
             {isSignup && (
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#888', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>Code parrainage (optionnel)</label>
-                <input value={refCode} onChange={e => setRefCode(e.target.value.toUpperCase())} placeholder="Ex: ALPHA50" style={{ ...inp, border: refCode ? '1.5px solid #1D9E75' : '1.5px solid #e0e0e0', color: refCode ? '#1D9E75' : '#111', fontWeight: refCode ? 700 : 400 }} />
+                <div style={{ position: 'relative' }}>
+                  <input value={refCode}
+                    onChange={e => { const v = e.target.value.toUpperCase(); setRefCode(v); setRefValid(null); if (v.length >= 3) verifierCode(v) }}
+                    placeholder="Ex: ALPHA50"
+                    style={{ ...inp, border: `1.5px solid ${refValid === true ? '#1D9E75' : refValid === false ? '#E24B4A' : refCode ? '#7F77DD' : '#e0e0e0'}`, paddingRight: 40 }} />
+                  <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 16 }}>
+                    {checkingRef ? '⏳' : refValid === true ? '✅' : refValid === false ? '❌' : ''}
+                  </span>
+                </div>
+                {refValid === true && <p style={{ fontSize: 11, color: '#1D9E75', marginTop: 4, fontWeight: 600 }}>✓ Code valide — tu seras parrainé(e) !</p>}
+                {refValid === false && <p style={{ fontSize: 11, color: '#E24B4A', marginTop: 4, fontWeight: 600 }}>Code introuvable ou inactif</p>}
               </div>
             )}
 
