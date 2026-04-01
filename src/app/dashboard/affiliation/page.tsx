@@ -8,12 +8,12 @@ export default function AffiliationPage() {
   const supabase = createClient()
   const [userId, setUserId] = useState<string | null>(null)
   const [affilie, setAffilie] = useState<any>(null)
-  const [filleuls, setFilleuls] = useState<any[]>([])
+  const [personnes inscrites, setPersonnes invitées] = useState<any[]>([])
   const [commissions, setCommissions] = useState<any[]>([])
   const [retraits, setRetraits] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
-  const [tab, setTab] = useState<'dashboard'|'filleuls'|'retraits'>('dashboard')
+  const [tab, setTab] = useState<'dashboard'|'personnes inscrites'|'retraits'>('dashboard')
   const [montantRetrait, setMontantRetrait] = useState('')
   const [numeroWave, setNumeroWave] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -31,17 +31,17 @@ export default function AffiliationPage() {
     setLoading(true)
     const [af, f, c, r] = await Promise.all([
       supabase.from('affilies').select('*').eq('user_id', uid).single(),
-      supabase.from('filleuls').select('*, profiles:filleul_user_id(email, nom_boutique, plan, created_at)').eq('affilie_id', uid).order('created_at', { ascending: false }),
+      supabase.from('personnes inscrites').select('*, profiles:personne invitée_user_id(email, nom_boutique, plan, created_at)').eq('affilie_id', uid).order('created_at', { ascending: false }),
       supabase.from('commissions').select('*').eq('affilie_id', uid).order('created_at', { ascending: false }),
       supabase.from('retraits').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
     ])
-    // Fix: filleuls query needs affilie_id from affilies table
+    // Fix: personnes inscrites query needs affilie_id from affilies table
     if (af.data) {
       const [f2, c2] = await Promise.all([
-        supabase.from('filleuls').select('*, profiles:filleul_user_id(email, nom_boutique, plan, created_at)').eq('affilie_id', af.data.id).order('created_at', { ascending: false }),
-        supabase.from('commissions').select('*, profiles:filleul_user_id(email)').eq('affilie_id', af.data.id).order('created_at', { ascending: false }),
+        supabase.from('personnes inscrites').select('*, profiles:personne invitée_user_id(email, nom_boutique, plan, created_at)').eq('affilie_id', af.data.id).order('created_at', { ascending: false }),
+        supabase.from('commissions').select('*, profiles:personne invitée_user_id(email)').eq('affilie_id', af.data.id).order('created_at', { ascending: false }),
       ])
-      setFilleuls(f2.data || [])
+      setPersonnes invitées(f2.data || [])
       setCommissions(c2.data || [])
     }
     setAffilie(af.data || null)
@@ -64,7 +64,7 @@ export default function AffiliationPage() {
       solde: 0,
       total_gains: 0,
       total_retire: 0,
-      nb_filleuls: 0,
+      nb_parraines: 0,
     }).select().single()
 
     if (!error && data) setAffilie(data)
@@ -123,12 +123,12 @@ export default function AffiliationPage() {
         <div style={{ fontSize: 56, marginBottom: 20 }}>🤝</div>
         <h1 style={{ fontSize: 28, fontWeight: 800, color: '#fff', letterSpacing: -.8, marginBottom: 12 }}>Programme d'affiliation</h1>
         <p style={{ fontSize: 16, color: 'rgba(255,255,255,.6)', lineHeight: 1.7, marginBottom: 32 }}>
-          Invite tes amis sur Dropzi et gagne <strong style={{ color: '#9FE1CB' }}>50% de commission</strong> sur chaque abonnement payé par tes filleuls.
+          Invite des commerçants sur Dropzi et gagne <strong style={{ color: '#9FE1CB' }}>50% de commission</strong> sur chaque abonnement payé par tes personnes inscrites.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 32 }}>
           {[
             { icon: '🔗', titre: 'Partage', desc: 'Ton lien unique' },
-            { icon: '👥', titre: 'Filleuls', desc: 'S\'inscrivent' },
+            { icon: '👥', titre: 'Personnes invitées', desc: 'S\'inscrivent' },
             { icon: '💰', titre: '50%', desc: 'De commission' },
           ].map(s => (
             <div key={s.titre} style={{ background: 'rgba(255,255,255,.06)', borderRadius: 14, padding: '16px 10px' }}>
@@ -141,10 +141,10 @@ export default function AffiliationPage() {
         <div style={{ background: 'rgba(255,255,255,.06)', borderRadius: 16, padding: '16px', marginBottom: 24, textAlign: 'left' }}>
           <p style={{ fontSize: 13, fontWeight: 700, color: '#AFA9EC', marginBottom: 10 }}>Exemple de gains :</p>
           {[
-            ['1 filleul Starter', '3 000 F', '1 500 F/mois'],
-            ['1 filleul Business', '5 000 F', '2 500 F/mois'],
-            ['1 filleul Elite', '15 000 F', '7 500 F/mois'],
-            ['10 filleuls Business', '50 000 F', '25 000 F/mois'],
+            ['1 personne invitée Starter', '3 000 F', '1 500 F/mois'],
+            ['1 personne invitée Business', '5 000 F', '2 500 F/mois'],
+            ['1 personne invitée Elite', '15 000 F', '7 500 F/mois'],
+            ['10 personnes inscrites Business', '50 000 F', '25 000 F/mois'],
           ].map(([plan, abo, gain]) => (
             <div key={plan} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
               <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)' }}>{plan}</span>
@@ -185,8 +185,8 @@ export default function AffiliationPage() {
             <p style={{ fontSize: 22, fontWeight: 800, color: '#534AB7', letterSpacing: -.5 }}>{fmt(affilie.total_gains)} F</p>
           </div>
           <div style={{ background: '#F0FFF4', borderRadius: 14, padding: '12px 16px', flex: 1 }}>
-            <p style={{ fontSize: 10, color: '#16A34A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>Filleuls</p>
-            <p style={{ fontSize: 22, fontWeight: 800, color: '#15803D', letterSpacing: -.5 }}>{affilie.nb_filleuls} personnes</p>
+            <p style={{ fontSize: 10, color: '#16A34A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>Personnes invitées</p>
+            <p style={{ fontSize: 22, fontWeight: 800, color: '#15803D', letterSpacing: -.5 }}>{affilie.nb_parraines} personnes</p>
           </div>
         </div>
       </div>
@@ -216,7 +216,7 @@ export default function AffiliationPage() {
 
       {/* TABS */}
       <div style={{ display: 'flex', gap: 4, background: '#F0F0F8', borderRadius: 14, padding: 4, marginBottom: 16 }}>
-        {[['dashboard','📊 Aperçu'],['filleuls','👥 Filleuls'],['retraits','💸 Retraits']].map(([id, label]) => (
+        {[['dashboard','📊 Aperçu'],['personnes inscrites','👥 Personnes invitées'],['retraits','💸 Retraits']].map(([id, label]) => (
           <button key={id} className="sbt" onClick={() => setTab(id as any)}
             style={{ flex: 1, padding: '8px', borderRadius: 11, border: 'none', background: tab === id ? '#fff' : 'transparent', color: tab === id ? '#0C0C1E' : '#888', fontWeight: 700, fontSize: 12, boxShadow: tab === id ? '0 2px 8px rgba(0,0,0,.08)' : 'none' }}>
             {label}
@@ -241,7 +241,7 @@ export default function AffiliationPage() {
               <div key={c.id} style={{ padding: '12px 18px', borderBottom: '1px solid #F5F5F5', display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#F0FFF4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>💰</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: '#0C0C1E', marginBottom: 2 }}>{c.profiles?.email || 'Filleul'}</p>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#0C0C1E', marginBottom: 2 }}>{c.profiles?.email || 'Invité'}</p>
                   <p style={{ fontSize: 11, color: '#ABABAB' }}>Plan {c.plan} · {new Date(c.created_at).toLocaleDateString('fr-FR')}</p>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -254,25 +254,25 @@ export default function AffiliationPage() {
         </div>
       )}
 
-      {/* FILLEULS */}
-      {tab === 'filleuls' && (
+      {/* MES INVITÉS */}
+      {tab === 'personnes inscrites' && (
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #F0F0F0', overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: '1px solid #F5F5F5' }}>
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#0C0C1E' }}>{filleuls.length} filleul{filleuls.length > 1 ? 's' : ''}</p>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#0C0C1E' }}>{personnes inscrites.length} personne invitée{personnes inscrites.length > 1 ? 's' : ''}</p>
           </div>
-          {filleuls.length === 0 ? (
+          {personnes inscrites.length === 0 ? (
             <div style={{ padding: '32px', textAlign: 'center' }}>
               <p style={{ fontSize: 32, marginBottom: 8 }}>👥</p>
-              <p style={{ fontSize: 14, color: '#C0C0C0' }}>Aucun filleul pour l'instant</p>
-              <p style={{ fontSize: 12, color: '#C0C0C0', marginTop: 4 }}>Partage ton lien de parrainage</p>
+              <p style={{ fontSize: 14, color: '#C0C0C0' }}>Aucun personne invitée pour l'instant</p>
+              <p style={{ fontSize: 12, color: '#C0C0C0', marginTop: 4 }}>Partage ton lien pour inviter des gens</p>
             </div>
-          ) : filleuls.map((f: any) => (
+          ) : personnes inscrites.map((f: any) => (
             <div key={f.id} style={{ padding: '12px 18px', borderBottom: '1px solid #F5F5F5', display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EEEDFE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: '#7F77DD', flexShrink: 0 }}>
                 {(f.profiles?.email || 'F').slice(0, 2).toUpperCase()}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#0C0C1E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.profiles?.email || 'Filleul'}</p>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#0C0C1E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.profiles?.email || 'Invité'}</p>
                 <p style={{ fontSize: 11, color: '#ABABAB' }}>{f.profiles?.nom_boutique || ''} · {new Date(f.created_at).toLocaleDateString('fr-FR')}</p>
               </div>
               <div style={{ flexShrink: 0 }}>
