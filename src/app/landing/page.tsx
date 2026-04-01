@@ -5,7 +5,7 @@ import Link from 'next/link'
 const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(n)
 
 const FEATURES = [
-  { icon: '🔄', titre: 'Sync Google Sheet automatique', desc: 'Tes commandes Easy Sell/Shopify arrivent dans Dropzi en moins de 60 secondes. Zéro saisie manuelle.', color: '#7F77DD' },
+  { icon: '🔄', titre: 'Sync Shopify automatique', desc: 'Tes commandes Shopify arrivent dans Dropzi en moins de 60 secondes. Zéro saisie manuelle.', color: '#7F77DD' },
   { icon: '💰', titre: 'Bénéfice en temps réel', desc: 'Vois ton bénéfice exact après déduction des coûts produits et frais de livraison. À chaque commande livrée.', color: '#1D9E75' },
   { icon: '📦', titre: 'Suivi stock automatique', desc: 'Ton stock se déduit tout seul à chaque livraison. Alerte quand un produit est presque épuisé.', color: '#BA7517' },
   { icon: '🧾', titre: '5 modèles de factures premium', desc: 'Sombre, Corporate, Minimal, Africain, Luxe. PDF en 1 clic ou partage direct sur WhatsApp.', color: '#534AB7' },
@@ -16,15 +16,15 @@ const FEATURES = [
 const PLANS = [
   {
     id: 'starter', nom: 'Starter', prix: 3000, couleur: '#888', bg: 'rgba(136,136,136,.08)', border: 'rgba(136,136,136,.15)',
-    features: ['50 commandes / mois', '5 produits maximum', '1 zone de livraison', '1 livreur', '1 modèle de facture basique', 'Sync Google Sheet (1h)'],
+    features: ['50 commandes / mois', '5 produits maximum', '1 zone de livraison', '1 livreur', '1 modèle de facture basique', 'Sync Shopify (1h)'],
   },
   {
     id: 'business', nom: 'Business', prix: 5000, couleur: '#7F77DD', bg: 'rgba(127,119,221,.08)', border: 'rgba(127,119,221,.4)', star: true,
-    features: ['500 commandes / mois', '25 produits maximum', '5 zones de livraison', '6 livreurs', '3 modèles de factures', 'Sync Google Sheet (1 min)', 'Import produits Shopify CSV', 'Photo produit', 'Notifications temps réel', 'Suivi stock automatique'],
+    features: ['500 commandes / mois', '25 produits maximum', '5 zones de livraison', '6 livreurs', '3 modèles de factures', 'Sync Shopify (1 min)', 'Import produits Shopify', 'Photo produit', 'Notifications temps réel', 'Suivi stock automatique'],
   },
   {
     id: 'elite', nom: 'Elite', prix: 15000, couleur: '#1D9E75', bg: 'rgba(29,158,117,.08)', border: 'rgba(29,158,117,.3)',
-    features: ['Commandes illimitées', 'Produits illimités', 'Zones & livreurs illimités', '5 modèles de factures premium', 'Sync Google Sheet (1 min)', 'Import produits Shopify', 'Analytics avancés', 'Export données', 'Support prioritaire', 'Nouvelles fonctions en avant-première'],
+    features: ['Commandes illimitées', 'Produits illimités', 'Zones & livreurs illimités', '5 modèles de factures premium', 'Sync Shopify (1 min)', 'Import produits Shopify', 'Analytics avancés', 'Export données', 'Support prioritaire', 'Nouvelles fonctions en avant-première'],
   },
 ]
 
@@ -229,7 +229,7 @@ export default function LandingPage() {
         <div style={{ maxWidth: 900, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20 }}>
           {[
             { val: c1 + '+', lbl: 'Boutiques actives', sub: 'font confiance à Dropzi', color: '#7F77DD' },
-            { val: c2 + 's', lbl: 'Délai sync maximum', sub: 'Google Sheet → Dropzi', color: '#1D9E75' },
+            { val: c2 + 's', lbl: 'Délai sync maximum', sub: 'Shopify → Dropzi', color: '#1D9E75' },
             { val: c3 + '%', lbl: 'Taux de satisfaction', sub: 'utilisateurs satisfaits', color: '#BA7517' },
           ].map((s, i) => (
             <div key={i} id={`stat-${i}`} data-animate="true" style={{ textAlign: 'center', background: 'rgba(255,255,255,.03)', borderRadius: 20, padding: '32px 16px', border: '1px solid rgba(255,255,255,.06)', transition: 'all .6s', opacity: isVis(`stat-${i}`) ? 1 : 0, transform: isVis(`stat-${i}`) ? 'translateY(0)' : 'translateY(24px)' }}>
