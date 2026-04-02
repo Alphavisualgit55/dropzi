@@ -35,6 +35,9 @@ function AbonnementContent() {
   const planParam = searchParams.get('plan')
 
   useEffect(() => {
+    let poll: ReturnType<typeof setInterval> | null = null
+    let channel: any = null
+
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
       setUserId(user.id)
@@ -49,18 +52,23 @@ function AbonnementContent() {
         return { profil: pr.data, abo: ab.data }
       }
 
-      const { profil: pr, abo: ab } = await charger()
+      const { abo: ab } = await charger()
       setLoading(false)
 
-      // Si retour de paiement → vérifier et activer automatiquement
-      if (status === 'success' && user.id) {
-        // Vérifier si le plan est déjà actif
-        const planDejaActif = ab?.statut === 'actif' && ab?.fin && new Date(ab.fin) > new Date()
-        if (!planDejaActif) {
-          // Polling : vérifier toutes les 3s pendant max 30s
+      // Realtime sur profiles ET abonnements
+      channel = supabase.channel('plan-live')
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` }, charger)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'abonnements', filter: `user_id=eq.${user.id}` }, charger)
+        .subscribe()
+
+      // Retour de paiement → polling actif jusqu'à activation
+      if (status === 'success') {
+        const dejaActif = ab?.statut === 'actif' && ab?.fin && new Date(ab.fin) > new Date()
+        if (!dejaActif) {
           let tentatives = 0
-          const poll = setInterval(async () => {
+          poll = setInterval(async () => {
             tentatives++
+            // Vérifier via PayDunya
             try {
               const res = await fetch('/api/paydunya/verify', {
                 method: 'POST',
@@ -69,15 +77,30 @@ function AbonnementContent() {
               })
               const result = await res.json()
               if (result.ok) {
-                clearInterval(poll)
-                await charger() // Recharger les données
+                if (poll) clearInterval(poll)
+                charger()
+                return
               }
             } catch(_) {}
-            if (tentatives >= 10) clearInterval(poll)
+            // Aussi vérifier directement dans Supabase
+            const { data: fresh } = await supabase.from('profiles').select('plan, plan_expires').eq('id', user.id).single()
+            if (fresh?.plan && fresh.plan !== 'aucun' && fresh.plan_expires && new Date(fresh.plan_expires) > new Date()) {
+              if (poll) clearInterval(poll)
+              charger()
+              return
+            }
+            if (tentatives >= 20) {
+              if (poll) clearInterval(poll)
+            }
           }, 3000)
         }
       }
     })
+
+    return () => {
+      if (poll) clearInterval(poll)
+      if (channel) supabase.removeChannel(channel)
+    }
   }, [status])
 
   async function souscrire(planId: string) {
@@ -104,6 +127,19 @@ function AbonnementContent() {
   const planActuel = profil?.plan || 'gratuit'
   const planExpire = abonnement?.fin ? new Date(abonnement.fin) < new Date() : true
   const planActif = abonnement?.statut === 'actif' && !planExpire
+
+  async function actualiser() {
+    setLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const [pr, ab] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', user.id).single(),
+      supabase.from('abonnements').select('*').eq('user_id', user.id).single(),
+    ])
+    setProfil(pr.data)
+    setAbonnement(ab.data)
+    setLoading(false)
+  }
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}>
