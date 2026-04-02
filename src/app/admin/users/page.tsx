@@ -36,12 +36,32 @@ export default function AdminUsersPage() {
 
   async function updatePlan(userId: string) {
     setSaving(true)
-    const expires = editExpires ? new Date(editExpires).toISOString() : null
-    await supabase.from('profiles').update({ plan: editPlan, plan_expires: expires }).eq('id', userId)
-    await supabase.from('abonnements').upsert({
-      user_id: userId, plan: editPlan, statut: editPlan === 'aucun' ? 'expire' : 'actif',
-      montant: PLAN_CFG[editPlan]?.prix || 0, fin: expires, debut: new Date().toISOString(), updated_at: new Date().toISOString()
+    // Si pas de date, mettre +30j par défaut
+    let expires: string | null = null
+    if (editExpires) {
+      expires = new Date(editExpires).toISOString()
+    } else if (editPlan !== 'aucun') {
+      const d = new Date(); d.setDate(d.getDate() + 30)
+      expires = d.toISOString()
+    }
+
+    // 1. Mettre à jour profiles EN PREMIER
+    const { error: pErr } = await supabase.from('profiles')
+      .update({ plan: editPlan, plan_expires: expires })
+      .eq('id', userId)
+    if (pErr) { alert('Erreur profil: ' + pErr.message); setSaving(false); return }
+
+    // 2. Upsert abonnements avec onConflict
+    const { error: aErr } = await supabase.from('abonnements').upsert({
+      user_id: userId,
+      plan: editPlan,
+      statut: editPlan === 'aucun' ? 'expire' : 'actif',
+      montant: PLAN_CFG[editPlan]?.prix || 0,
+      fin: expires,
+      debut: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }, { onConflict: 'user_id' })
+    if (aErr) console.error('Erreur abonnement:', aErr)
     // Notifier l'utilisateur
     if (editPlan !== 'aucun') {
       await supabase.from('notifications_user').insert({
