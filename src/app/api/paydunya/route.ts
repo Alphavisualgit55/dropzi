@@ -84,13 +84,12 @@ export async function POST(request: NextRequest) {
     if (aboErr) console.error('Erreur sauvegarde abonnement:', aboErr)
 
     // Aussi sauvegarder dans une table de suivi des paiements en attente
-    await supabase.from('paiements_pending').upsert({
-      user_id,
-      plan,
-      token: data.token,
-      montant: planData.prix,
-      created_at: new Date().toISOString(),
-    }, { onConflict: 'token' }).then(() => {}).catch(() => {})
+    try {
+      await supabase.from('paiements_pending').upsert({
+        user_id, plan, token: data.token,
+        montant: planData.prix, created_at: new Date().toISOString(),
+      }, { onConflict: 'token' })
+    } catch(_) {}
 
     console.log('✅ Facture créée - token:', data.token, '| callback_url:', payload.actions.callback_url)
 
