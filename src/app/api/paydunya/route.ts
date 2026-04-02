@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     const planData = PLANS[plan as keyof typeof PLANS]
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://dropzi.netlify.app'
+    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://dropzi.io').replace(/\/+$/, '')
 
     // Créer la facture PayDunya
     const payload = {
