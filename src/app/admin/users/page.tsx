@@ -57,19 +57,21 @@ export default function AdminUsersPage() {
     const result = await adminApi(action, userId, extra)
     setSaving(false)
     if (result.ok) {
-      alert('✅ ' + successMsg + (result.plan ? ` — Plan: ${result.plan}` : ''))
       setSelected(null); setConfirmDel(null); setConfirmReset(null)
-      // Mettre à jour localement sans attendre le reload
+      // Mise à jour immédiate de l'état local
       if (action === 'set_plan') {
-        setUsers(prev => prev.map(u => u.id === userId
-          ? { ...u, plan: result.plan, plan_expires: result.fin }
-          : u
+        setUsers(prev => prev.map(u =>
+          u.id === userId ? { ...u, plan: result.plan, plan_expires: result.fin } : u
         ))
+        alert(`✅ Plan ${result.plan} activé !`)
       } else if (action === 'delete_user') {
         setUsers(prev => prev.filter(u => u.id !== userId))
+        alert('✅ Compte supprimé')
+      } else if (action === 'reset_data') {
+        alert('✅ Données réinitialisées')
+      } else {
+        alert('✅ ' + successMsg)
       }
-      // Reload complet en arrière-plan
-      setTimeout(() => load(), 500)
     } else {
       alert('❌ Erreur: ' + (result.error || JSON.stringify(result)))
     }
