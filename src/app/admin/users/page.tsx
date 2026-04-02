@@ -59,27 +59,36 @@ export default function AdminUsersPage() {
 
   async function updatePlan(userId: string) {
     setSaving(true)
-    try {
-      // Appel API server-side avec service_role (bypass RLS)
-      const res = await fetch('/api/admin/set-plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'set_plan',
-          userId,
-          plan: editPlan,
-          expires: editExpires || null,
-        })
-      })
-      const data = await res.json()
-      if (!data.ok) {
-        alert('Erreur : ' + (data.error || 'inconnue'))
-        setSaving(false); return
-      }
-      alert(`✅ Plan ${editPlan} activé pour cet utilisateur !`)
-    } catch (e: any) {
-      alert('Erreur réseau : ' + e.message)
+    let expires: string | null = null
+    if (editExpires) {
+      expires = new Date(editExpires).toISOString()
+    } else if (editPlan !== 'aucun') {
+      const d = new Date(); d.setDate(d.getDate() + 30)
+      expires = d.toISOString()
     }
+
+    const PRIX: Record<string, number> = { starter: 3000, business: 5000, elite: 15000 }
+
+    const { error: e1 } = await supabase.from('profiles')
+      .update({ plan: editPlan, plan_expires: expires }).eq('id', userId)
+    if (e1) { alert('Erreur: ' + e1.message); setSaving(false); return }
+
+    await supabase.from('abonnements').upsert({
+      user_id: userId, plan: editPlan,
+      statut: editPlan === 'aucun' ? 'expire' : 'actif',
+      montant: PRIX[editPlan] || 0,
+      fin: expires, debut: new Date().toISOString(), updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' })
+
+    if (editPlan !== 'aucun') {
+      await supabase.from('notifications_user').insert({
+        user_id: userId,
+        titre: `🎉 Plan ${editPlan.charAt(0).toUpperCase() + editPlan.slice(1)} activé !`,
+        message: `Ton abonnement Dropzi ${editPlan} est maintenant actif. Bonne gestion !`,
+        type: 'success',
+      })
+    }
+
     setSaving(false); setSelected(null); load()
   }
 
