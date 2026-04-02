@@ -26,11 +26,14 @@ export default function AdminUsersPage() {
 
   async function load() {
     setLoading(true)
-    const { data } = await supabase
-      .from('profiles')
-      .select('*, abonnements(plan, statut, fin, montant, debut, paydunya_token)')
-      .order('created_at', { ascending: false })
-    setUsers(data || [])
+    try {
+      const res = await fetch('/api/admin/users')
+      const data = await res.json()
+      if (data.ok) setUsers(data.users || [])
+      else console.error('Erreur load users:', data.error)
+    } catch(e) {
+      console.error('Erreur réseau:', e)
+    }
     setLoading(false)
   }
 
@@ -45,9 +48,9 @@ export default function AdminUsersPage() {
       })
       const data = await res.json()
       if (data.ok) {
-        alert(`✅ Plan ${planChoisi} activé !`)
+        alert(`✅ Plan ${planChoisi} activé ! Plan vérifié dans DB: ${data.plan}`)
       } else {
-        alert('❌ Erreur : ' + (data.error || 'inconnue'))
+        alert('❌ Erreur : ' + (data.error || JSON.stringify(data)))
       }
     } catch(e: any) {
       alert('❌ Erreur réseau : ' + e.message)
