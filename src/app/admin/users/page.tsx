@@ -24,7 +24,7 @@ async function adminApi(action: string, user_id: string, extra: any = {}) {
 }
 
 async function loadUsers() {
-  const res = await fetch('/api/admin/users')
+  const res = await fetch('/api/admin/users?t=' + Date.now(), { cache: 'no-store' })
   const data = await res.json()
   return data.ok ? data.users : []
 }
