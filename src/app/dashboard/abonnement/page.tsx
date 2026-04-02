@@ -38,15 +38,47 @@ function AbonnementContent() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
       setUserId(user.id)
-      const [pr, ab] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', user.id).single(),
-        supabase.from('abonnements').select('*').eq('user_id', user.id).single(),
-      ])
-      setProfil(pr.data)
-      setAbonnement(ab.data)
+
+      const charger = async () => {
+        const [pr, ab] = await Promise.all([
+          supabase.from('profiles').select('*').eq('id', user.id).single(),
+          supabase.from('abonnements').select('*').eq('user_id', user.id).single(),
+        ])
+        setProfil(pr.data)
+        setAbonnement(ab.data)
+        return { profil: pr.data, abo: ab.data }
+      }
+
+      const { profil: pr, abo: ab } = await charger()
       setLoading(false)
+
+      // Si retour de paiement → vérifier et activer automatiquement
+      if (status === 'success' && user.id) {
+        // Vérifier si le plan est déjà actif
+        const planDejaActif = ab?.statut === 'actif' && ab?.fin && new Date(ab.fin) > new Date()
+        if (!planDejaActif) {
+          // Polling : vérifier toutes les 3s pendant max 30s
+          let tentatives = 0
+          const poll = setInterval(async () => {
+            tentatives++
+            try {
+              const res = await fetch('/api/paydunya/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: user.id })
+              })
+              const result = await res.json()
+              if (result.ok) {
+                clearInterval(poll)
+                await charger() // Recharger les données
+              }
+            } catch(_) {}
+            if (tentatives >= 10) clearInterval(poll)
+          }, 3000)
+        }
+      }
     })
-  }, [])
+  }, [status])
 
   async function souscrire(planId: string) {
     if (!userId || !profil) return
