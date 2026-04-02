@@ -21,69 +21,84 @@ async function activatePlan(token: string) {
   })
 
   const data = await res.json()
-  if (data.status !== 'completed') return { ok: false, reason: 'not_completed', status: data.status }
+  console.log('PayDunya confirm response:', JSON.stringify(data).slice(0, 500))
 
-  // Récupérer l'abonnement via token
+  // PayDunya peut renvoyer completed, success, COMPLETED...
+  const status = (data.status || '').toLowerCase()
+  const isCompleted = status === 'completed' || status === 'success' || data.response_code === '00'
+  if (!isCompleted) return { ok: false, reason: 'not_completed', status: data.status }
+
+  const customData = data.custom_data || data.invoice?.custom_data || {}
+  const montant = data.invoice?.total_amount || customData.montant || 0
+
+  // Chercher d'abord dans abonnements par token
+  let userId = customData.user_id
+  let plan = customData.plan
+
   const { data: abo } = await supabase
     .from('abonnements')
     .select('user_id, plan')
     .eq('paydunya_token', token)
-    .single()
+    .maybeSingle()
 
-  const customData = data.custom_data || {}
-  const userId = abo?.user_id || customData.user_id
-  const plan = abo?.plan || customData.plan
-  const montant = data.invoice?.total_amount || 0
+  if (abo) {
+    userId = userId || abo.user_id
+    plan = plan || abo.plan
+  }
 
-  if (!userId || !plan) return { ok: false, reason: 'no_user_or_plan' }
+  if (!userId || !plan) {
+    console.error('Webhook: userId ou plan manquant', { userId, plan, customData })
+    return { ok: false, reason: 'no_user_or_plan', customData }
+  }
 
   const fin = new Date()
   fin.setDate(fin.getDate() + 30)
+  const finStr = fin.toISOString()
+  const now = new Date().toISOString()
 
-  // Activer l'abonnement
-  await supabase.from('abonnements').upsert({
-    user_id: userId,
-    plan,
-    statut: 'actif',
-    paydunya_token: token,
-    montant,
-    debut: new Date().toISOString(),
-    fin: fin.toISOString(),
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'user_id' })
+  // 1. Mettre à jour profiles IMMÉDIATEMENT
+  const { error: profileErr } = await supabase
+    .from('profiles')
+    .update({ plan, plan_expires: finStr })
+    .eq('id', userId)
 
-  await supabase.from('profiles').update({
-    plan,
-    plan_expires: fin.toISOString(),
-  }).eq('id', userId)
+  if (profileErr) console.error('Erreur update profiles:', profileErr)
 
-  // Notification utilisateur
+  // 2. Upsert abonnements
+  const { error: aboErr } = await supabase
+    .from('abonnements')
+    .upsert({
+      user_id: userId,
+      plan,
+      statut: 'actif',
+      paydunya_token: token,
+      montant,
+      debut: now,
+      fin: finStr,
+      updated_at: now,
+    }, { onConflict: 'user_id' })
+
+  if (aboErr) console.error('Erreur upsert abonnements:', aboErr)
+
+  // 3. Notification
   await supabase.from('notifications_user').insert({
     user_id: userId,
-    titre: `🎉 Abonnement ${plan.charAt(0).toUpperCase() + plan.slice(1)} activé !`,
+    titre: `🎉 Plan ${plan.charAt(0).toUpperCase() + plan.slice(1)} activé !`,
     message: `Ton abonnement Dropzi ${plan} est actif jusqu'au ${fin.toLocaleDateString('fr-FR')}.`,
     type: 'success',
-  })
+  }).catch(() => {})
 
-  // ── COMMISSION AFFILIATION ──
+  // 4. Commission affiliation
   try {
-    // Vérifier si ce filleul a un parrain
     const { data: profil } = await supabase
       .from('profiles')
-      .select('parrain_code, affilie_id')
+      .select('affilie_id')
       .eq('id', userId)
       .single()
 
-    if (profil?.affilie_id) {
-      const commission = Math.round(montant * 0.5) // 50%
-
-      // Créditer le solde de l'affilié
-      await supabase.rpc('crediter_affilie', {
-        p_affilie_id: profil.affilie_id,
-        p_montant: commission,
-      })
-
-      // Enregistrer la commission
+    if (profil?.affilie_id && montant > 0) {
+      const commission = Math.round(montant * 0.5)
+      await supabase.rpc('crediter_affilie', { p_affilie_id: profil.affilie_id, p_montant: commission }).catch(() => {})
       await supabase.from('commissions').insert({
         affilie_id: profil.affilie_id,
         filleul_user_id: userId,
@@ -91,41 +106,41 @@ async function activatePlan(token: string) {
         montant_abonnement: montant,
         plan,
         statut: 'valide',
-      })
-
-      // Notifier l'affilié
-      const { data: affilieProfile } = await supabase
-        .from('affilies')
-        .select('user_id')
-        .eq('id', profil.affilie_id)
-        .single()
-
-      if (affilieProfile) {
+      }).catch(() => {})
+      const { data: aff } = await supabase.from('affilies').select('user_id').eq('id', profil.affilie_id).single()
+      if (aff) {
         await supabase.from('notifications_user').insert({
-          user_id: affilieProfile.user_id,
-          titre: `💰 Commission reçue — ${commission} FCFA !`,
-          message: `Un de tes filleuls vient de souscrire au plan ${plan}. Tu gagnes ${commission} FCFA de commission (50%).`,
+          user_id: aff.user_id,
+          titre: `💰 Commission ${commission} FCFA reçue !`,
+          message: `Un de tes contacts vient de souscrire au plan ${plan}.`,
           type: 'success',
-        })
+        }).catch(() => {})
       }
     }
   } catch (e) {
-    console.error('Erreur commission affiliation:', e)
+    console.error('Erreur commission:', e)
   }
 
-  return { ok: true }
+  console.log(`✅ Plan ${plan} activé pour user ${userId} jusqu'au ${finStr}`)
+  return { ok: true, userId, plan, fin: finStr }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    console.log('Webhook body keys:', Object.keys(body))
+
     const token =
       body.data?.invoice?.token ||
       body.invoice?.token ||
       body.token ||
-      body.data?.token
+      body.data?.token ||
+      body.custom_data?.token
 
-    if (!token) return NextResponse.json({ ok: false, reason: 'no_token' })
+    if (!token) {
+      console.error('Webhook: token manquant dans', JSON.stringify(body).slice(0, 300))
+      return NextResponse.json({ ok: false, reason: 'no_token' })
+    }
 
     const result = await activatePlan(token)
     return NextResponse.json(result)
