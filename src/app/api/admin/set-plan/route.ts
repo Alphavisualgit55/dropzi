@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-// SERVICE ROLE = bypass total RLS
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -12,67 +11,62 @@ const PRIX: Record<string, number> = { starter: 3000, business: 5000, elite: 150
 export async function POST(request: NextRequest) {
   try {
     const { user_id, plan, expires_days } = await request.json()
-
-    if (!user_id || !plan) {
-      return NextResponse.json({ ok: false, error: 'user_id et plan requis' }, { status: 400 })
-    }
+    if (!user_id || !plan) return NextResponse.json({ ok: false, error: 'user_id et plan requis' })
 
     const fin = new Date()
     fin.setDate(fin.getDate() + (expires_days || 30))
     const finStr = fin.toISOString()
-    const now = new Date().toISOString()
 
-    // 1. Update profiles avec service_role (bypass RLS)
-    const { error: e1 } = await supabase
-      .from('profiles')
-      .update({ plan, plan_expires: finStr })
-      .eq('id', user_id)
+    // Utiliser une fonction SQL avec security definer pour bypass absolu
+    const { data: rpcResult, error: rpcErr } = await supabase.rpc('admin_set_plan', {
+      p_user_id: user_id,
+      p_plan: plan,
+      p_expires: finStr,
+      p_montant: PRIX[plan] || 0,
+    })
 
-    if (e1) {
-      console.error('Erreur profiles:', e1)
-      return NextResponse.json({ ok: false, error: 'profiles: ' + e1.message })
-    }
+    console.log('admin_set_plan RPC result:', rpcResult, 'error:', rpcErr)
 
-    // 2. Upsert abonnements
-    const { error: e2 } = await supabase
-      .from('abonnements')
-      .upsert({
-        user_id,
-        plan,
+    if (rpcErr) {
+      // Fallback : update direct avec service role
+      console.log('RPC failed, trying direct update...')
+      
+      const { data: d1, error: e1 } = await supabase
+        .from('profiles')
+        .update({ plan, plan_expires: finStr })
+        .eq('id', user_id)
+        .select('id, plan, plan_expires')
+      
+      console.log('Direct update result:', d1, e1)
+
+      if (e1) return NextResponse.json({ ok: false, error: e1.message })
+      if (!d1 || d1.length === 0) return NextResponse.json({ ok: false, error: 'User introuvable: ' + user_id })
+
+      // Abonnements
+      const { error: e2 } = await supabase.from('abonnements').upsert({
+        user_id, plan,
         statut: plan === 'aucun' ? 'expire' : 'actif',
         montant: PRIX[plan] || 0,
-        debut: now,
+        debut: new Date().toISOString(),
         fin: finStr,
-        updated_at: now,
+        updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' })
+      if (e2) console.error('Abonnements error:', e2)
 
-    if (e2) console.error('Erreur abonnements:', e2)
+      return NextResponse.json({ ok: true, plan: d1[0].plan, fin: finStr, method: 'direct' })
+    }
 
-    // 3. Notification utilisateur
-    if (plan !== 'aucun') {
+    // RPC a marché
+    try {
       await supabase.from('notifications_user').insert({
         user_id,
         titre: `🎉 Plan ${plan.charAt(0).toUpperCase() + plan.slice(1)} activé !`,
-        message: `Ton abonnement Dropzi ${plan} est actif jusqu'au ${fin.toLocaleDateString('fr-FR')}.`,
+        message: `Ton abonnement Dropzi ${plan} est maintenant actif.`,
         type: 'success',
       })
-    }
+    } catch(_) {}
 
-    // 4. Vérification finale
-    const { data: check } = await supabase
-      .from('profiles')
-      .select('plan, plan_expires')
-      .eq('id', user_id)
-      .single()
-
-    console.log(`✅ Admin: plan ${plan} activé pour ${user_id} | Vérifié: ${check?.plan}`)
-
-    return NextResponse.json({
-      ok: true,
-      plan: check?.plan,
-      expires: check?.plan_expires,
-      fin: finStr
-    })
+    return NextResponse.json({ ok: true, plan, fin: finStr, method: 'rpc' })
   } catch (e: any) {
     console.error('set-plan error:', e)
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 })
