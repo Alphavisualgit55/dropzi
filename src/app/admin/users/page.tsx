@@ -59,7 +59,17 @@ export default function AdminUsersPage() {
     if (result.ok) {
       alert('✅ ' + successMsg + (result.plan ? ` — Plan: ${result.plan}` : ''))
       setSelected(null); setConfirmDel(null); setConfirmReset(null)
-      load()
+      // Mettre à jour localement sans attendre le reload
+      if (action === 'set_plan') {
+        setUsers(prev => prev.map(u => u.id === userId
+          ? { ...u, plan: result.plan, plan_expires: result.fin }
+          : u
+        ))
+      } else if (action === 'delete_user') {
+        setUsers(prev => prev.filter(u => u.id !== userId))
+      }
+      // Reload complet en arrière-plan
+      setTimeout(() => load(), 500)
     } else {
       alert('❌ Erreur: ' + (result.error || JSON.stringify(result)))
     }
