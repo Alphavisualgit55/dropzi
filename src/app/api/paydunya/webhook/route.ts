@@ -81,12 +81,7 @@ async function activatePlan(token: string) {
   if (aboErr) console.error('Erreur upsert abonnements:', aboErr)
 
   // 3. Notification
-  await supabase.from('notifications_user').insert({
-    user_id: userId,
-    titre: `🎉 Plan ${plan.charAt(0).toUpperCase() + plan.slice(1)} activé !`,
-    message: `Ton abonnement Dropzi ${plan} est actif jusqu'au ${fin.toLocaleDateString('fr-FR')}.`,
-    type: 'success',
-  }).catch(() => {})
+  try { await supabase.from('notifications_user').insert({ user_id: userId, titre: `🎉 Plan ${plan.charAt(0).toUpperCase() + plan.slice(1)} activé !`, message: `Ton abonnement Dropzi ${plan} est actif jusqu'au ${fin.toLocaleDateString('fr-FR')}.`, type: 'success' }) } catch(_) {}
 
   // 4. Commission affiliation
   try {
@@ -98,23 +93,11 @@ async function activatePlan(token: string) {
 
     if (profil?.affilie_id && montant > 0) {
       const commission = Math.round(montant * 0.5)
-      await supabase.rpc('crediter_affilie', { p_affilie_id: profil.affilie_id, p_montant: commission }).catch(() => {})
-      await supabase.from('commissions').insert({
-        affilie_id: profil.affilie_id,
-        filleul_user_id: userId,
-        montant: commission,
-        montant_abonnement: montant,
-        plan,
-        statut: 'valide',
-      }).catch(() => {})
+      try { await supabase.rpc('crediter_affilie', { p_affilie_id: profil.affilie_id, p_montant: commission }) } catch(_) {}
+      try { await supabase.from('commissions').insert({ affilie_id: profil.affilie_id, filleul_user_id: userId, montant: commission, montant_abonnement: montant, plan, statut: 'valide' }) } catch(_) {}
       const { data: aff } = await supabase.from('affilies').select('user_id').eq('id', profil.affilie_id).single()
       if (aff) {
-        await supabase.from('notifications_user').insert({
-          user_id: aff.user_id,
-          titre: `💰 Commission ${commission} FCFA reçue !`,
-          message: `Un de tes contacts vient de souscrire au plan ${plan}.`,
-          type: 'success',
-        }).catch(() => {})
+        try { await supabase.from('notifications_user').insert({ user_id: aff.user_id, titre: `💰 Commission ${commission} FCFA reçue !`, message: `Un de tes contacts vient de souscrire au plan ${plan}.`, type: 'success' }) } catch(_) {}
       }
     }
   } catch (e) {
