@@ -37,59 +37,49 @@ export default function AdminUsersPage() {
   async function activerDirectement(userId: string, planChoisi: string) {
     if (!confirm(`Activer le plan ${planChoisi} pour cet utilisateur ?`)) return
     setSaving(true)
-    const fin = new Date(); fin.setDate(fin.getDate() + 30)
-    const finStr = fin.toISOString()
-
-    await supabase.from('profiles').update({ plan: planChoisi, plan_expires: finStr }).eq('id', userId)
-    await supabase.from('abonnements').upsert({
-      user_id: userId, plan: planChoisi, statut: 'actif',
-      montant: PLAN_CFG[planChoisi]?.prix || 0,
-      debut: new Date().toISOString(), fin: finStr, updated_at: new Date().toISOString()
-    }, { onConflict: 'user_id' })
-    await supabase.from('notifications_user').insert({
-      user_id: userId,
-      titre: `🎉 Plan ${planChoisi} activé !`,
-      message: `Ton abonnement Dropzi ${planChoisi} a été activé par l'admin. Profite de toutes les fonctionnalités !`,
-      type: 'success',
-    })
+    try {
+      const res = await fetch('/api/admin/set-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, plan: planChoisi, expires_days: 30 })
+      })
+      const data = await res.json()
+      if (data.ok) {
+        alert(`✅ Plan ${planChoisi} activé !`)
+      } else {
+        alert('❌ Erreur : ' + (data.error || 'inconnue'))
+      }
+    } catch(e: any) {
+      alert('❌ Erreur réseau : ' + e.message)
+    }
     setSaving(false)
-    alert(`✅ Plan ${planChoisi} activé jusqu'au ${fin.toLocaleDateString('fr-FR')}`)
     load()
   }
 
   async function updatePlan(userId: string) {
     setSaving(true)
-    let expires: string | null = null
+    let expiresDays = 30
     if (editExpires) {
-      expires = new Date(editExpires).toISOString()
-    } else if (editPlan !== 'aucun') {
-      const d = new Date(); d.setDate(d.getDate() + 30)
-      expires = d.toISOString()
+      const diff = Math.ceil((new Date(editExpires).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+      expiresDays = Math.max(1, diff)
     }
-
-    const PRIX: Record<string, number> = { starter: 3000, business: 5000, elite: 15000 }
-
-    const { error: e1 } = await supabase.from('profiles')
-      .update({ plan: editPlan, plan_expires: expires }).eq('id', userId)
-    if (e1) { alert('Erreur: ' + e1.message); setSaving(false); return }
-
-    await supabase.from('abonnements').upsert({
-      user_id: userId, plan: editPlan,
-      statut: editPlan === 'aucun' ? 'expire' : 'actif',
-      montant: PRIX[editPlan] || 0,
-      fin: expires, debut: new Date().toISOString(), updated_at: new Date().toISOString()
-    }, { onConflict: 'user_id' })
-
-    if (editPlan !== 'aucun') {
-      await supabase.from('notifications_user').insert({
-        user_id: userId,
-        titre: `🎉 Plan ${editPlan.charAt(0).toUpperCase() + editPlan.slice(1)} activé !`,
-        message: `Ton abonnement Dropzi ${editPlan} est maintenant actif. Bonne gestion !`,
-        type: 'success',
+    try {
+      const res = await fetch('/api/admin/set-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, plan: editPlan, expires_days: expiresDays })
       })
+      const data = await res.json()
+      if (data.ok) {
+        setSelected(null)
+      } else {
+        alert('❌ Erreur : ' + (data.error || 'inconnue'))
+      }
+    } catch(e: any) {
+      alert('❌ Erreur réseau : ' + e.message)
     }
-
-    setSaving(false); setSelected(null); load()
+    setSaving(false)
+    load()
   }
 
   async function resetUser(userId: string) {
