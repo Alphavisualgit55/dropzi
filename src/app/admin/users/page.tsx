@@ -34,42 +34,51 @@ export default function AdminUsersPage() {
     setLoading(false)
   }
 
+  async function activerDirectement(userId: string, planChoisi: string) {
+    if (!confirm(`Activer le plan ${planChoisi} pour cet utilisateur ?`)) return
+    setSaving(true)
+    const fin = new Date(); fin.setDate(fin.getDate() + 30)
+    const finStr = fin.toISOString()
+
+    await supabase.from('profiles').update({ plan: planChoisi, plan_expires: finStr }).eq('id', userId)
+    await supabase.from('abonnements').upsert({
+      user_id: userId, plan: planChoisi, statut: 'actif',
+      montant: PLAN_CFG[planChoisi]?.prix || 0,
+      debut: new Date().toISOString(), fin: finStr, updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' })
+    await supabase.from('notifications_user').insert({
+      user_id: userId,
+      titre: `🎉 Plan ${planChoisi} activé !`,
+      message: `Ton abonnement Dropzi ${planChoisi} a été activé par l'admin. Profite de toutes les fonctionnalités !`,
+      type: 'success',
+    })
+    setSaving(false)
+    alert(`✅ Plan ${planChoisi} activé jusqu'au ${fin.toLocaleDateString('fr-FR')}`)
+    load()
+  }
+
   async function updatePlan(userId: string) {
     setSaving(true)
-    // Si pas de date, mettre +30j par défaut
-    let expires: string | null = null
-    if (editExpires) {
-      expires = new Date(editExpires).toISOString()
-    } else if (editPlan !== 'aucun') {
-      const d = new Date(); d.setDate(d.getDate() + 30)
-      expires = d.toISOString()
-    }
-
-    // 1. Mettre à jour profiles EN PREMIER
-    const { error: pErr } = await supabase.from('profiles')
-      .update({ plan: editPlan, plan_expires: expires })
-      .eq('id', userId)
-    if (pErr) { alert('Erreur profil: ' + pErr.message); setSaving(false); return }
-
-    // 2. Upsert abonnements avec onConflict
-    const { error: aErr } = await supabase.from('abonnements').upsert({
-      user_id: userId,
-      plan: editPlan,
-      statut: editPlan === 'aucun' ? 'expire' : 'actif',
-      montant: PLAN_CFG[editPlan]?.prix || 0,
-      fin: expires,
-      debut: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'user_id' })
-    if (aErr) console.error('Erreur abonnement:', aErr)
-    // Notifier l'utilisateur
-    if (editPlan !== 'aucun') {
-      await supabase.from('notifications_user').insert({
-        user_id: userId,
-        titre: `🎉 Plan ${editPlan} activé par l'admin`,
-        message: `Ton abonnement Dropzi ${editPlan} a été activé. Profite de toutes les fonctionnalités !`,
-        type: 'success',
+    try {
+      // Appel API server-side avec service_role (bypass RLS)
+      const res = await fetch('/api/admin/set-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'set_plan',
+          userId,
+          plan: editPlan,
+          expires: editExpires || null,
+        })
       })
+      const data = await res.json()
+      if (!data.ok) {
+        alert('Erreur : ' + (data.error || 'inconnue'))
+        setSaving(false); return
+      }
+      alert(`✅ Plan ${editPlan} activé pour cet utilisateur !`)
+    } catch (e: any) {
+      alert('Erreur réseau : ' + e.message)
     }
     setSaving(false); setSelected(null); load()
   }
@@ -216,8 +225,19 @@ export default function AdminUsersPage() {
                         </div>
                         <button onClick={() => updatePlan(u.id)} disabled={saving}
                           style={{ marginTop: 12, width: '100%', background: 'linear-gradient(135deg,#7F77DD,#534AB7)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                          {saving ? '⏳...' : '✓ Appliquer'}
+                          {saving ? '⏳...' : '✓ Appliquer les modifications'}
                         </button>
+                        <div style={{ marginTop: 10 }}>
+                          <p style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', marginBottom: 6 }}>⚡ Activation rapide (+30j)</p>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            {['starter','business','elite'].map(p => (
+                              <button key={p} onClick={() => activerDirectement(u.id, p)} disabled={saving}
+                                style={{ flex: 1, padding: '7px 4px', borderRadius: 8, border: 'none', background: p === 'starter' ? 'rgba(245,158,11,.2)' : p === 'business' ? 'rgba(127,119,221,.2)' : 'rgba(29,158,117,.2)', color: p === 'starter' ? '#F59E0B' : p === 'business' ? '#AFA9EC' : '#9FE1CB', fontSize: 11, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', textTransform: 'capitalize' }}>
+                                {p}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
 
                       {/* Actions rapides */}
