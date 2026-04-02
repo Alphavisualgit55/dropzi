@@ -11,12 +11,16 @@ const PLAN_CFG: Record<string, { color: string; bg: string; prix: number }> = {
 }
 
 async function adminApi(action: string, user_id: string, extra: any = {}) {
+  const payload = { action, user_id, ...extra }
+  console.log('🔵 adminApi call:', payload)
   const res = await fetch('/api/admin/action', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, user_id, ...extra })
+    body: JSON.stringify(payload)
   })
-  return res.json()
+  const result = await res.json()
+  console.log('🟢 adminApi result:', result)
+  return result
 }
 
 async function loadUsers() {
