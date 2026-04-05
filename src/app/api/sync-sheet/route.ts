@@ -110,9 +110,6 @@ async function syncUser(config: any): Promise<number> {
   const zone = zones?.find((z: any) => z.id === zoneId)
   const coutLivraison = zone?.cout_livraison || 0
 
-  // Dernière sync pour anti-doublon basé sur le temps
-  const derniereSync = config.derniere_sync ? new Date(config.derniere_sync) : null
-
   // Charger les empreintes depuis la table dédiée (persiste même après suppression des commandes)
   const { data: existingFingerprints } = await supabase
     .from('sync_imported')
@@ -139,12 +136,6 @@ async function syncUser(config: any): Promise<number> {
     // ANTI-DOUBLON : empreinte unique basée sur téléphone + produit + date
     const fingerprint = `Sync auto — ${phone}|${productName}|${dateStr}`
     if (notesSet.has(fingerprint)) continue
-
-    // Anti-doublon par date si disponible
-    if (derniereSync && dateStr) {
-      const rowDate = new Date(dateStr)
-      if (!isNaN(rowDate.getTime()) && rowDate <= derniereSync) continue
-    }
 
     // Vérifier limite plan (non bloquant si erreur RPC)
     try {
