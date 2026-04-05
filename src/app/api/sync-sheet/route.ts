@@ -121,8 +121,11 @@ async function syncUser(config: any): Promise<number> {
 
   let imported = 0
 
-  const maxRows = Math.min(lines.length, 21)
-  for (let i = 1; i < maxRows; i++) {
+  // Lire toutes les lignes — les nouvelles commandes sont en bas du sheet
+  // On lit les 200 dernières lignes pour ne pas manquer de nouvelles commandes
+  const totalRows = lines.length
+  const startRow = Math.max(1, totalRows - 10000)
+  for (let i = startRow; i < totalRows; i++) {
     const cols = lines[i].split(',').map((c: string) => c.replace(/"/g, '').trim())
 
     const fullName = cols[idx.name] || ''
