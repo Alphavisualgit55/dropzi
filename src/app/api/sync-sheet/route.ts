@@ -146,7 +146,7 @@ async function syncUser(config: any): Promise<number> {
           titre: '🚫 Limite de commandes atteinte',
           message: 'Tu as atteint la limite de commandes de ton plan. Upgrade pour continuer.',
           type: 'warning',
-        }).catch(() => {})
+        })
         break
       }
     } catch (_) {
