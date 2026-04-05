@@ -30,17 +30,21 @@ export async function GET(request: NextRequest) {
     }
 
     let totalImported = 0
+    console.log(`🔄 Sync démarrée - ${configs.length} config(s) active(s)`)
 
     for (const config of configs) {
       try {
+        console.log(`Sync user ${config.user_id} - sheet: ${config.sheet_url?.slice(0, 50)}`)
         const imported = await syncUser(config)
         totalImported += imported
+        console.log(`✅ User ${config.user_id}: ${imported} commandes importées`)
       } catch (e: any) {
-        console.error(`Erreur sync user ${config.user_id}:`, e.message)
+        console.error(`❌ Erreur sync user ${config.user_id}:`, e.message)
       }
     }
 
-    return NextResponse.json({ message: 'Sync terminée', totalImported })
+    console.log(`✅ Sync terminée - total: ${totalImported} commandes`)
+    return NextResponse.json({ message: 'Sync terminée', totalImported, configs: configs.length })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
@@ -142,18 +146,21 @@ async function syncUser(config: any): Promise<number> {
       if (!isNaN(rowDate.getTime()) && rowDate <= derniereSync) continue
     }
 
-    // Vérifier limite plan
-    const planOk = await supabase.rpc('check_plan_limit', { uid: userId, resource: 'commandes' })
-    if (!planOk.data) {
-      try {
+    // Vérifier limite plan (non bloquant si erreur RPC)
+    try {
+      const planOk = await supabase.rpc('check_plan_limit', { uid: userId, resource: 'commandes' })
+      if (planOk.data === false) {
         await supabase.from('notifications_user').insert({
           user_id: userId,
           titre: '🚫 Limite de commandes atteinte',
           message: 'Tu as atteint la limite de commandes de ton plan. Upgrade pour continuer.',
           type: 'warning',
-        })
-      } catch (_) {}
-      break
+        }).catch(() => {})
+        break
+      }
+    } catch (_) {
+      // Si check_plan_limit échoue, on continue quand même
+      console.log('check_plan_limit non disponible, on continue')
     }
 
     try {
