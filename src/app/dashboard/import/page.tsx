@@ -127,6 +127,7 @@ export default function ImportPage() {
 
       const lines = text.split('\n').filter((l: string) => l.trim())
       const headers = lines[0].split(',').map((h: string) => h.replace(/"/g, '').trim().toLowerCase())
+      // A=Full Name, B=Phone, C=Address, D=Product Name, E=Product Price, F=Product Quantity, G=Date & Time
       const idx = {
         name:    headers.findIndex((h: string) => h.includes('full name') || h.includes('name')),
         phone:   headers.findIndex((h: string) => h.includes('phone')),
@@ -134,7 +135,16 @@ export default function ImportPage() {
         product: headers.findIndex((h: string) => h.includes('product name')),
         price:   headers.findIndex((h: string) => h.includes('product price') || h.includes('price')),
         qty:     headers.findIndex((h: string) => h.includes('quantity') || h.includes('qty')),
-        date:    headers.findIndex((h: string) => h.includes('date')),
+        date:    headers.findIndex((h: string) => h.includes('date') || h.includes('time')) !== -1
+          ? headers.findIndex((h: string) => h.includes('date') || h.includes('time'))
+          : 6,
+      }
+
+      // Vérifier que les colonnes essentielles sont détectées
+      if (idx.name === -1 || idx.phone === -1) {
+        alert('❌ Format du sheet non reconnu.\n\nVérifie que ton sheet contient bien les colonnes :\n• Full Name\n• Phone\n• Product Name\n• Date & Time\n\nColonnes détectées : ' + headers.join(', '))
+        setLoading(false)
+        return
       }
 
       const parsed: SheetRow[] = lines.slice(1).map((line: string) => {
