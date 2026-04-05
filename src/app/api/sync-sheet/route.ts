@@ -97,7 +97,9 @@ async function syncUser(config: any): Promise<number> {
     product: headers.findIndex((h: string) => h.includes('product name')),
     price: headers.findIndex((h: string) => h.includes('product price') || h.includes('price')),
     qty: headers.findIndex((h: string) => h.includes('quantity') || h.includes('qty')),
-    date: headers.findIndex((h: string) => h.includes('date')),
+    date: headers.findIndex((h: string) => h.includes('date') || h.includes('time') || h.includes('heure') || h.includes('created')) !== -1 
+      ? headers.findIndex((h: string) => h.includes('date') || h.includes('time') || h.includes('heure') || h.includes('created'))
+      : 5, // Fallback: colonne F (index 5)
   }
 
   // Récupérer produits et zones
