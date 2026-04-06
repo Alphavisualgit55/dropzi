@@ -198,9 +198,52 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
   }
 
+  const debug = searchParams.get('debug') === '1'
+
   try {
     const { data: configs } = await supabase.from('sync_config').select('*').eq('actif', true)
     if (!configs?.length) return NextResponse.json({ message: 'Aucune config active', totalImported: 0 })
+
+    if (debug) {
+      // Mode debug : analyser le sheet sans importer
+      const results = []
+      for (const config of configs) {
+        try {
+          const res = await fetch(config.sheet_url, { cache: 'no-store' })
+          const text = await res.text()
+          const lines = text.split('
+').filter((l: string) => l.trim())
+          const headers = lines[0]?.split(',').map((h: string) => h.replace(/"/g, '').trim().toLowerCase()) || []
+          const dateIdx = headers.findIndex((h: string) => h.includes('date') || h.includes('time'))
+          const phoneIdx = headers.findIndex((h: string) => h.includes('phone'))
+
+          // Lire les 3 dernières lignes
+          const lastLines = lines.slice(-3).map(l => {
+            const cols = l.split(',').map((c: string) => c.replace(/"/g, '').trim())
+            return {
+              phone: cols[phoneIdx] || '',
+              date: cols[dateIdx !== -1 ? dateIdx : 6] || '',
+              raw: cols.slice(0, 8)
+            }
+          })
+
+          const { data: fp } = await supabase.from('sync_imported').select('fingerprint').eq('user_id', config.user_id)
+
+          results.push({
+            user_id: config.user_id.slice(0,8),
+            total_lines: lines.length - 1,
+            headers,
+            date_col_index: dateIdx !== -1 ? dateIdx : 6,
+            derniere_commande_date: config.derniere_commande_date,
+            nb_fingerprints: fp?.length || 0,
+            last_3_rows: lastLines,
+          })
+        } catch (e: any) {
+          results.push({ user_id: config.user_id.slice(0,8), error: e.message })
+        }
+      }
+      return NextResponse.json({ debug: true, results })
+    }
 
     let totalImported = 0
     for (const config of configs) {
