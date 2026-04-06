@@ -163,6 +163,15 @@ async function syncUser(config: any): Promise<number> {
         if (!prixVente) prixVente = match.prix_vente || 0
       }
 
+      // Vérification finale anti-doublon dans DB (protection contre syncs simultanées)
+      const { data: alreadyImported } = await supabase
+        .from('sync_imported')
+        .select('fingerprint')
+        .eq('user_id', userId)
+        .eq('fingerprint', row.fingerprint)
+        .maybeSingle()
+      if (alreadyImported) { fpSet.add(row.fingerprint); continue }
+
       // Créer commande
       const { data: commande } = await supabase.from('commandes').insert({
         user_id: userId,
